@@ -1,9 +1,10 @@
+
 'use client';
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, UtensilsCrossed } from 'lucide-react';
+import { Menu, UtensilsCrossed, User } from 'lucide-react';
 import { useCart } from '@/context/cart-context';
 import { ShoppingCart } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
@@ -11,11 +12,12 @@ import { ThemeToggle } from './theme-toggle';
 const navLinks = [
   { href: '/outlets', label: 'Outlets' },
   { href: '/orders', label: 'My Orders' },
-  { href: '/auth', label: 'Login' },
 ];
 
 export default function Header() {
   const { itemCount } = useCart();
+  const isLoggedIn = false; // Replace with actual auth state
+  
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
@@ -36,7 +38,7 @@ export default function Header() {
             </Link>
           ))}
         </nav>
-        <div className="flex flex-1 items-center justify-end gap-4">
+        <div className="flex flex-1 items-center justify-end gap-2">
            <ThemeToggle />
           <Button asChild variant="ghost" size="icon">
               <Link href="/cart">
@@ -49,6 +51,22 @@ export default function Header() {
                   <span className="sr-only">View Cart</span>
               </Link>
           </Button>
+
+          {isLoggedIn ? (
+             <Button asChild variant="ghost" size="icon">
+              <Link href="/profile">
+                  <User className="h-5 w-5"/>
+                  <span className="sr-only">Profile</span>
+              </Link>
+            </Button>
+          ) : (
+            <Button asChild variant="ghost" className='hidden md:inline-flex'>
+              <Link href="/auth/login">
+                Login
+              </Link>
+            </Button>
+          )}
+
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden">
@@ -65,7 +83,7 @@ export default function Header() {
                   <UtensilsCrossed className="h-6 w-6 text-primary" />
                   <span className="font-headline">DineHub</span>
                 </Link>
-                {navLinks.map((link) => (
+                {[...navLinks, { href: '/auth/login', label: 'Login' }].map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
