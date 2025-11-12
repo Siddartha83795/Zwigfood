@@ -30,7 +30,7 @@ export default function RoleSelectPage() {
         <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-2">
           {roles.map((role) => (
             <Link href={role.href} key={role.name}>
-              <Card className="group h-full transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:border-primary">
+              <Card className="group h-full transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:border-primary text-center">
                 <CardHeader className="items-center">
                   {role.icon}
                   <CardTitle className="mt-4 text-2xl font-headline">
