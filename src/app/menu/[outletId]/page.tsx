@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, use } from 'react';
 import { notFound } from 'next/navigation';
 import { outlets, menuItems as allMenuItems } from '@/lib/data';
 import MenuItemCard from '@/components/menu-item-card';
@@ -9,7 +9,8 @@ import CartWidget from '@/components/cart-widget';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
-export default function MenuPage({ params }: { params: { outletId: string } }) {
+export default function MenuPage({ params: paramsPromise }: { params: Promise<{ outletId: string }> }) {
+  const params = use(paramsPromise);
   const { setOutletId } = useCart();
   const outlet = useMemo(() => outlets.find(o => o.id === params.outletId), [params.outletId]);
   
