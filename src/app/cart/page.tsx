@@ -150,7 +150,7 @@ export default function CartPage() {
                         <Info className="h-4 w-4" />
                         <AlertTitle>Prediction Failed</AlertTitle>
                         <AlertDescription className="text-xs">{predictionError}</AlertDescription>
-                    </Aler>
+                    </Alert>
                 )}
               </div>
             </CardContent>
