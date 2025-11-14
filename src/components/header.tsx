@@ -25,13 +25,13 @@ const navLinks = [
 
 export default function Header() {
   const { itemCount } = useCart();
-  const [isClient, setIsClient] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   
   useEffect(() => {
-    setIsClient(true);
+    setIsMounted(true);
     setIsLoggedIn(localStorage.getItem('isLoggedIn') === 'true');
   }, [pathname]);
 
@@ -51,7 +51,7 @@ export default function Header() {
               DineHub
             </span>
           </Link>
-           {isClient && isLoggedIn && (
+           {isMounted && isLoggedIn && (
               <nav className="hidden gap-6 md:flex">
                 {navLinks.map((link) => (
                   <Link
@@ -67,22 +67,23 @@ export default function Header() {
         </div>
         <div className="flex flex-1 items-center justify-end gap-2">
            <ThemeToggle />
-          {isClient && isLoggedIn && (
-            <Button asChild variant="ghost" size="icon" className="relative">
-                <Link href="/cart">
-                    <ShoppingCart className="h-5 w-5"/>
-                    {itemCount > 0 && (
-                        <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                            {itemCount}
-                        </span>
-                    )}
-                    <span className="sr-only">View Cart</span>
-                </Link>
-            </Button>
-          )}
-
-          {isClient ? (
+           
+          {isMounted ? (
             <>
+              {isLoggedIn && (
+                <Button asChild variant="ghost" size="icon" className="relative">
+                    <Link href="/cart">
+                        <ShoppingCart className="h-5 w-5"/>
+                        {itemCount > 0 && (
+                            <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                                {itemCount}
+                            </span>
+                        )}
+                        <span className="sr-only">View Cart</span>
+                    </Link>
+                </Button>
+              )}
+
               {isLoggedIn ? (
                  <DropdownMenu>
                     <DropdownMenuTrigger asChild>
