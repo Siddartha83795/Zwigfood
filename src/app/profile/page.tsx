@@ -12,6 +12,8 @@ import { z } from 'zod';
 import { mockUserProfile } from '@/lib/data';
 import { User, Mail, Phone, Home } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import type { UserProfile } from '@/lib/types';
 
 const profileSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -25,20 +27,25 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 export default function ProfilePage() {
   const { toast } = useToast();
   const router = useRouter();
+  const [userProfile, setUserProfile] = useState<UserProfile>(mockUserProfile);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      name: mockUserProfile.name,
-      email: mockUserProfile.email,
-      phone: mockUserProfile.phone,
-      address: mockUserProfile.address || '',
+      name: userProfile.name,
+      email: userProfile.email,
+      phone: userProfile.phone,
+      address: userProfile.address || '',
     },
+    // This will reset the form with new values when userProfile state changes
+    values: userProfile 
   });
 
   function onSubmit(data: ProfileFormValues) {
     console.log('Profile updated:', data);
-    // Here you would typically save the data to your backend.
+    // Simulate updating the user's profile state
+    setUserProfile(currentProfile => ({...currentProfile, ...data, isProfileComplete: true}));
+    
     // We'll simulate this by updating a value in localStorage.
     localStorage.setItem('isProfileComplete', 'true');
     toast({
