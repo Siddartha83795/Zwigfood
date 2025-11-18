@@ -1,0 +1,220 @@
+/**
+ * @file Firestore Security Rules for DineHub
+ * @description This ruleset enforces a strict user-ownership model for private data while allowing public read access to cafeteria outlet information.
+ *
+ * Data Structure:
+ * - /outlets/{outletId}: Stores public information about cafeteria outlets.
+ * - /outlets/{outletId}/menu_items/{menuItemId}: Stores public menu items for each outlet.
+ * - /users/{userId}: Stores basic user profile information.
+ * - /users/{userId}/orders/{orderId}: Stores order history for each user.
+ * - /users/{userId}/wallet: Stores wallet information for each user.
+ * - /users/{userId}/ratings/{ratingId}: Stores user ratings for menu items.
+ * - /users/{userId}/notifications/{notificationId}: Stores notifications for each user.
+ * - /staff/{staffId}: Stores staff member information.
+ * - /prediction_models/{modelId}: Stores metadata about machine learning models.
+ *
+ * Key Security Decisions:
+ * - Users can only access their own orders, wallets, ratings, and notifications.
+ * - Public read access is granted to outlet and menu item data.
+ * - Listing of user subcollections (orders, ratings, notifications) is allowed only for the owner.
+ * - The rules do NOT validate the specific schema of the data being written, allowing for rapid iteration.  Only authorization-critical fields are validated.
+ *
+ * Denormalization for Authorization:
+ * - The `orders` subcollection under each user includes a denormalized `outletId`. This eliminates the need for `get()` calls to parent documents to authorize access and supports atomic operations.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Allows public read access to outlet information. Only allows authenticated users to create, update, or delete outlets.
+     * @path /outlets/{outletId}
+     * @allow (get, list): if true
+     * @allow (create): if isSignedIn()
+     * @allow (update): if isSignedIn()
+     * @allow (delete): if isSignedIn()
+     * @deny (create): if false
+     * @deny (update): if false
+     * @deny (delete): if false
+     * @principle Allows public read access to outlets, and only authenticated users can manage outlets
+     */
+    match /outlets/{outletId} {
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Allows public read access to menu items. Only allows authenticated users to create, update, or delete menu items.
+     * @path /outlets/{outletId}/menu_items/{menuItemId}
+     * @allow (get, list): if true
+     * @allow (create): if isSignedIn()
+     * @allow (update): if isSignedIn()
+     * @allow (delete): if isSignedIn()
+     * @deny (create): if false
+     * @deny (update): if false
+     * @deny (delete): if false
+     * @principle Allows public read access to menu items, and only authenticated users can manage menu items
+     */
+    match /outlets/{outletId}/menu_items/{menuItemId} {
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Allows a user to manage their own orders.
+     * @path /users/{userId}/orders/{orderId}
+     * @allow (get, list): if isOwner(userId)
+     * @allow (create): if isOwner(userId) && request.resource.data.clientId == userId;
+     * @allow (update): if isExistingOwner(userId) && request.resource.data.clientId == resource.data.clientId;
+     * @allow (delete): if isExistingOwner(userId);
+     * @deny (create): if !isOwner(userId) || request.resource.data.clientId != userId;
+     * @deny (update): if !isExistingOwner(userId) || request.resource.data.clientId != resource.data.clientId;
+     * @deny (delete): if !isExistingOwner(userId);
+     * @principle Enforces document ownership and relational integrity for orders.
+     */
+    match /users/{userId}/orders/{orderId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.clientId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.clientId == resource.data.clientId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows management of staff information. Only allows authenticated users to create, update, or delete staff.
+     * @path /staff/{staffId}
+     * @allow (get, list): if isSignedIn()
+     * @allow (create): if isSignedIn()
+     * @allow (update): if isSignedIn()
+     * @allow (delete): if isSignedIn()
+     * @deny (create): if false
+     * @deny (update): if false
+     * @deny (delete): if false
+     * @principle Allows management of staff, and only authenticated users can manage them
+     */
+    match /staff/{staffId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Allows a user to manage their own wallet.
+     * @path /users/{userId}/wallet
+     * @allow (get): if isOwner(userId)
+     * @allow (create): if isOwner(userId) && request.resource.data.userId == userId;
+     * @allow (update): if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+     * @allow (delete): if false;
+     * @allow list: if false;
+     * @deny (create): if !isOwner(userId) || request.resource.data.userId != userId;
+     * @deny (update): if !isExistingOwner(userId) || request.resource.data.userId != resource.data.userId;
+     * @principle Enforces document ownership and relational integrity for wallets.  Listing is disallowed. Deletion is disallowed.
+     */
+    match /users/{userId}/wallet {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Allows a user to manage their own ratings.
+     * @path /users/{userId}/ratings/{ratingId}
+     * @allow (get, list): if isOwner(userId)
+     * @allow (create): if isOwner(userId) && request.resource.data.userId == userId;
+     * @allow (update): if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+     * @allow (delete): if isExistingOwner(userId);
+     * @deny (create): if !isOwner(userId) || request.resource.data.userId != userId;
+     * @deny (update): if !isExistingOwner(userId) || request.resource.data.userId != resource.data.userId;
+     * @deny (delete): if !isExistingOwner(userId);
+     * @principle Enforces document ownership and relational integrity for ratings.
+     */
+    match /users/{userId}/ratings/{ratingId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows a user to manage their own notifications.
+     * @path /users/{userId}/notifications/{notificationId}
+     * @allow (get, list): if isOwner(userId)
+     * @allow (create): if isOwner(userId) && request.resource.data.userId == userId;
+     * @allow (update): if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+     * @allow (delete): if isExistingOwner(userId);
+     * @deny (create): if !isOwner(userId) || request.resource.data.userId != userId;
+     * @deny (update): if !isExistingOwner(userId) || request.resource.data.userId != resource.data.userId;
+     * @deny (delete): if !isExistingOwner(userId);
+     * @principle Enforces document ownership and relational integrity for notifications.
+     */
+    match /users/{userId}/notifications/{notificationId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows a user to create their own user document.
+     * @path /users/{userId}
+     * @allow (get): if isOwner(userId)
+     * @allow (create): if isOwner(userId) && request.resource.data.id == userId;
+     * @allow (update): if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+     * @allow (delete): if false;
+     * @allow list: if false;
+     * @deny (create): if !isOwner(userId) || request.resource.data.id != userId;
+     * @deny (update): if !isExistingOwner(userId) || request.resource.data.id != resource.data.id;
+     * @principle Enforces document ownership and relational integrity for user profiles. Listing and Deletion are disallowed.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Allows management of prediction model metadata. Only allows authenticated users to create, update, or delete prediction models.
+     * @path /prediction_models/{modelId}
+     * @allow (get, list): if isSignedIn()
+     * @allow (create): if isSignedIn()
+     * @allow (update): if isSignedIn()
+     * @allow (delete): if isSignedIn()
+     * @deny (create): if false
+     * @deny (update): if false
+     * @deny (delete): if false
+     * @principle Allows management of prediction models, and only authenticated users can manage them
+     */
+    match /prediction_models/{modelId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+  }
+
+  // Helper function to determine if the user is signed in
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  // Helper function to determine if the user is the owner of the document
+  function isOwner(userId) {
+    return request.auth.uid == userId;
+  }
+
+  // Helper function to determine if the user is the owner of the document and the document exists
+  function isExistingOwner(userId) {
+    return isOwner(userId) && resource != null;
+  }
+}

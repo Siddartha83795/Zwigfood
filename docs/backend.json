@@ -1,0 +1,651 @@
+{
+  "entities": {
+    "Outlet": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Outlet",
+      "type": "object",
+      "description": "Represents a cafeteria outlet within DineHub.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the outlet."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the outlet."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the outlet."
+        },
+        "image": {
+          "type": "string",
+          "description": "URL of the outlet's image."
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Indicates if the outlet is currently active."
+        },
+        "breakTimes": {
+          "type": "string",
+          "description": "JSON string representing the outlet's break times. Includes the starting time, ending time and the multiplier to apply for orders in the break time."
+        },
+        "baseDeliveryTime": {
+          "type": "number",
+          "description": "Base delivery time for orders from this outlet (in minutes)."
+        },
+        "dailyTokenCounter": {
+          "type": "number",
+          "description": "Counter for generating unique order tokens daily."
+        },
+        "lastTokenResetDate": {
+          "type": "string",
+          "description": "Date of the last token reset.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "image",
+        "isActive",
+        "breakTimes",
+        "baseDeliveryTime",
+        "dailyTokenCounter",
+        "lastTokenResetDate"
+      ]
+    },
+    "MenuItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MenuItem",
+      "type": "object",
+      "description": "Represents a menu item offered at an outlet.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the menu item."
+        },
+        "outletId": {
+          "type": "string",
+          "description": "Reference to Outlet. (Relationship: Outlet 1:N MenuItem)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the menu item."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the menu item."
+        },
+        "priceInr": {
+          "type": "number",
+          "description": "Price of the menu item in Indian Rupees."
+        },
+        "image": {
+          "type": "string",
+          "description": "URL of the menu item's image."
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the menu item."
+        },
+        "isAvailable": {
+          "type": "boolean",
+          "description": "Indicates if the menu item is currently available."
+        },
+        "averagePrepTime": {
+          "type": "number",
+          "description": "Average preparation time for the menu item (in minutes)."
+        },
+        "orderCount": {
+          "type": "number",
+          "description": "Number of times this menu item has been ordered."
+        },
+        "averageRating": {
+          "type": "number",
+          "description": "Average rating of the menu item."
+        },
+        "totalRatings": {
+          "type": "number",
+          "description": "Total number of ratings for the menu item."
+        },
+        "complexity": {
+          "type": "string",
+          "description": "Complexity level of the menu item (e.g., Easy, Medium, Hard)."
+        }
+      },
+      "required": [
+        "id",
+        "outletId",
+        "name",
+        "description",
+        "priceInr",
+        "image",
+        "category",
+        "isAvailable",
+        "averagePrepTime",
+        "orderCount",
+        "averageRating",
+        "totalRatings",
+        "complexity"
+      ]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents an order placed by a customer.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the order."
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Order)"
+        },
+        "outletId": {
+          "type": "string",
+          "description": "Reference to Outlet. (Relationship: Outlet 1:N Order)"
+        },
+        "items": {
+          "type": "string",
+          "description": "JSON string representing the items in the order and their quantities."
+        },
+        "totalAmountInr": {
+          "type": "number",
+          "description": "Total amount of the order in Indian Rupees."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the order (e.g., Placed, Accepted, Preparing, Ready, Completed, Cancelled)."
+        },
+        "paymentStatus": {
+          "type": "string",
+          "description": "Payment status of the order (e.g., Pending, Paid, Failed)."
+        },
+        "orderNumber": {
+          "type": "number",
+          "description": "Unique order number."
+        },
+        "tokenNumber": {
+          "type": "number",
+          "description": "Token number for the order (unique per outlet per day)."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Payment method used for the order (e.g., Wallet, Card, Cash)."
+        },
+        "expectedCompletionTime": {
+          "type": "string",
+          "description": "Expected completion time of the order.",
+          "format": "date-time"
+        },
+        "estimatedWaitTime": {
+          "type": "number",
+          "description": "Estimated wait time for the order (in minutes)."
+        },
+        "preparationStartTime": {
+          "type": "string",
+          "description": "Time when the order preparation started.",
+          "format": "date-time"
+        },
+        "readyTimestamp": {
+          "type": "string",
+          "description": "Timestamp when the order is ready.",
+          "format": "date-time"
+        },
+        "actualCompletionTime": {
+          "type": "string",
+          "description": "Actual completion time of the order.",
+          "format": "date-time"
+        },
+        "subStatus": {
+          "type": "string",
+          "description": "Sub-status of the order (e.g., Delayed, Priority)."
+        },
+        "priority": {
+          "type": "string",
+          "description": "Priority of the order (e.g., High, Medium, Low)."
+        },
+        "isDelayed": {
+          "type": "boolean",
+          "description": "Indicates if the order is delayed."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the order was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "clientId",
+        "outletId",
+        "items",
+        "totalAmountInr",
+        "status",
+        "paymentStatus",
+        "orderNumber",
+        "tokenNumber",
+        "paymentMethod",
+        "expectedCompletionTime",
+        "estimatedWaitTime",
+        "preparationStartTime",
+        "readyTimestamp",
+        "actualCompletionTime",
+        "subStatus",
+        "priority",
+        "isDelayed",
+        "createdAt"
+      ]
+    },
+    "Staff": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Staff",
+      "type": "object",
+      "description": "Represents a staff member working at an outlet.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the staff member."
+        },
+        "employeeId": {
+          "type": "string",
+          "description": "Employee ID of the staff member."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the staff member."
+        },
+        "department": {
+          "type": "string",
+          "description": "Department of the staff member."
+        },
+        "outletId": {
+          "type": "string",
+          "description": "Reference to Outlet. (Relationship: Outlet 1:N Staff)"
+        }
+      },
+      "required": [
+        "id",
+        "employeeId",
+        "name",
+        "department",
+        "outletId"
+      ]
+    },
+    "Wallet": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Wallet",
+      "type": "object",
+      "description": "Represents a user's wallet balance.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the wallet."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:1 Wallet)"
+        },
+        "balance": {
+          "type": "number",
+          "description": "Current balance in the wallet."
+        },
+        "transactions": {
+          "type": "string",
+          "description": "JSON string representing the transaction history of the wallet."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "balance",
+        "transactions"
+      ]
+    },
+    "Rating": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Rating",
+      "type": "object",
+      "description": "Represents a user's rating for a menu item.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the rating."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Rating)"
+        },
+        "menuItemId": {
+          "type": "string",
+          "description": "Reference to MenuItem. (Relationship: MenuItem 1:N Rating)"
+        },
+        "rating": {
+          "type": "number",
+          "description": "Rating given by the user."
+        },
+        "comment": {
+          "type": "string",
+          "description": "Optional comment accompanying the rating."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the rating was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "menuItemId",
+        "rating",
+        "createdAt"
+      ]
+    },
+    "Notification": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Notification",
+      "type": "object",
+      "description": "Represents a notification for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the notification."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Notification)"
+        },
+        "message": {
+          "type": "string",
+          "description": "Content of the notification."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of notification (e.g., Order Update, Promotion)."
+        },
+        "isRead": {
+          "type": "boolean",
+          "description": "Indicates if the notification has been read."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the notification was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "message",
+        "type",
+        "isRead",
+        "createdAt"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the DineHub application.  Details managed by Supabase Auth.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user. (From Supabase Auth)"
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address. (From Supabase Auth)",
+          "format": "email"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "createdAt"
+      ]
+    },
+    "PredictionModel": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PredictionModel",
+      "type": "object",
+      "description": "Metadata for the machine learning model used to generate ETA estimates.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the prediction model metadata."
+        },
+        "modelName": {
+          "type": "string",
+          "description": "Name of the machine learning model (e.g., 'LinearRegression', 'RandomForest')."
+        },
+        "version": {
+          "type": "string",
+          "description": "Version of the deployed model."
+        },
+        "accuracy": {
+          "type": "number",
+          "description": "Accuracy score of the model on a held-out validation set."
+        },
+        "trainingDataStartDate": {
+          "type": "string",
+          "description": "Start date of the training data used to train the model.",
+          "format": "date-time"
+        },
+        "trainingDataEndDate": {
+          "type": "string",
+          "description": "End date of the training data used to train the model.",
+          "format": "date-time"
+        },
+        "featureList": {
+          "type": "string",
+          "description": "JSON array listing features used by the model (e.g., ['averagePrepTime', 'queueDepth', 'breakTimes']).",
+          "format": "json-array"
+        },
+        "deploymentDate": {
+          "type": "string",
+          "description": "Date the model was deployed to production.",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the purpose of the model."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional notes about the model (e.g., known limitations, planned updates)."
+        }
+      },
+      "required": [
+        "id",
+        "modelName",
+        "version",
+        "accuracy",
+        "trainingDataStartDate",
+        "trainingDataEndDate",
+        "featureList",
+        "deploymentDate"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/outlets/{outletId}",
+        "definition": {
+          "entityName": "Outlet",
+          "schema": {
+            "$ref": "#/backend/entities/Outlet"
+          },
+          "description": "Stores information about cafeteria outlets.",
+          "params": [
+            {
+              "name": "outletId",
+              "description": "Unique identifier for the outlet."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/outlets/{outletId}/menu_items/{menuItemId}",
+        "definition": {
+          "entityName": "MenuItem",
+          "schema": {
+            "$ref": "#/backend/entities/MenuItem"
+          },
+          "description": "Stores menu items for each outlet. Includes denormalized 'outletId' for query optimization.",
+          "params": [
+            {
+              "name": "outletId",
+              "description": "Unique identifier for the outlet."
+            },
+            {
+              "name": "menuItemId",
+              "description": "Unique identifier for the menu item."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/orders/{orderId}",
+        "definition": {
+          "entityName": "Order",
+          "schema": {
+            "$ref": "#/backend/entities/Order"
+          },
+          "description": "Stores orders placed by users. Includes denormalized 'outletId' for authorization independence and efficient querying.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
+            },
+            {
+              "name": "orderId",
+              "description": "Unique identifier for the order."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/staff/{staffId}",
+        "definition": {
+          "entityName": "Staff",
+          "schema": {
+            "$ref": "#/backend/entities/Staff"
+          },
+          "description": "Stores information about staff members. Includes 'outletId' to link staff to outlets.",
+          "params": [
+            {
+              "name": "staffId",
+              "description": "Unique identifier for the staff member."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/wallet",
+        "definition": {
+          "entityName": "Wallet",
+          "schema": {
+            "$ref": "#/backend/entities/Wallet"
+          },
+          "description": "Stores wallet information for each user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/ratings/{ratingId}",
+        "definition": {
+          "entityName": "Rating",
+          "schema": {
+            "$ref": "#/backend/entities/Rating"
+          },
+          "description": "Stores user ratings for menu items.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
+            },
+            {
+              "name": "ratingId",
+              "description": "Unique identifier for the rating."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/notifications/{notificationId}",
+        "definition": {
+          "entityName": "Notification",
+          "schema": {
+            "$ref": "#/backend/entities/Notification"
+          },
+          "description": "Stores notifications for each user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
+            },
+            {
+              "name": "notificationId",
+              "description": "Unique identifier for the notification."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles.  Managed by Supabase Auth.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/prediction_models/{modelId}",
+        "definition": {
+          "entityName": "PredictionModel",
+          "schema": {
+            "$ref": "#/backend/entities/PredictionModel"
+          },
+          "description": "Stores metadata about the machine learning models used for ETA predictions.",
+          "params": [
+            {
+              "name": "modelId",
+              "description": "Unique identifier for the prediction model metadata."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support DineHub's cafeteria management app, focusing on security, scalability, and debuggability, adhering to the core design principles and strategy mandates.\n\n**Authorization Independence:** Achieved through denormalization. For instance, the `orders` subcollection under each user includes a denormalized `outletId`. This eliminates the need for `get()` calls to parent documents to authorize access and supports atomic operations.\n\n**Structural Segregation:** Employed to maintain a homogeneous security posture within collections.  For example, `outlets` are stored in a dedicated collection, separate from user-specific data. The `Staff` collection is linked to `Outlet` by storing the `outletId` on the `Staff` document.\n\n**Access Modeling:**\n*   **Private Data:** User-owned data like `wallets`, `notifications`, and `orders` are stored under the `/users/{userId}` path to enforce path-based ownership.\n*   **Collaborative Data:** The staff assigned to each outlet is stored in the `staff` collection. Rules can ensure only staff assigned to an outlet can modify the order status.\n\n**QAPs Support:**\n*   Secure `list` operations are enabled by the segregation of data into collections with uniform security needs and the use of path-based ownership.\n\n**Invariants:**\n*   The structure supports the integrity of timestamps (`createdAt`, `updatedAt`) and denormalized data, ensuring consistency across the database.\n\n**Prediction Model:**\n*   The `prediction_models` collection stores metadata about the machine learning models used for ETA predictions, ensuring that model versions, accuracy, and training data are tracked."
+  }
+}
