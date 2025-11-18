@@ -1,3 +1,6 @@
+
+import type { Timestamp } from 'firebase/firestore';
+
 export type Outlet = {
   id: string;
   name: string;
@@ -8,7 +11,7 @@ export type Outlet = {
 };
 
 export type MenuItem = {
-  id: string;
+  id:string;
   outletId: string;
   name: string;
   description: string;
@@ -37,11 +40,13 @@ export type Order = {
   orderNumber: string;
   tokenNumber: number;
   outletId: string;
-  items: CartItem[];
+  items: string; // JSON string of simplified item objects {id, name, quantity, priceInr}
   totalAmountInr: number;
   status: OrderStatus;
+  paymentStatus: string;
+  paymentMethod: string;
   estimatedWaitTime: number;
-  createdAt: string;
+  createdAt: Timestamp | object; // Can be server timestamp object before being written
   clientName: string;
   clientId: string;
 };

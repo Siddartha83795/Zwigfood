@@ -6,12 +6,14 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Clock, Tag, Hash, Utensils, User, Check, UtensilsCrossed, PartyPopper } from 'lucide-react';
-import { outlets } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { cva } from 'class-variance-authority';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
+import type { Outlet } from '@/lib/types';
+import { useMemo } from 'react';
 
 type OrderCardProps = {
   order: Order;
@@ -35,18 +37,43 @@ const statusVariants = cva('capitalize', {
     },
 });
 
-export default function OrderCard({ order: initialOrder, isStaffView = false, onStatusChange }: OrderCardProps) {
-  const [order, setOrder] = useState(initialOrder);
-  const { toast } = useToast();
+function isTimestamp(value: any): value is { toDate: () => Date } {
+    return value && typeof value.toDate === 'function';
+}
 
-  const outlet = outlets.find(o => o.id === order.outletId);
-  const timeAgo = Math.round((new Date().getTime() - new Date(order.createdAt).getTime()) / (1000 * 60));
+export default function OrderCard({ order, isStaffView = false, onStatusChange }: OrderCardProps) {
+  const { toast } = useToast();
+  const firestore = useFirestore();
+
+  const outletsRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'outlets');
+  }, [firestore]);
+  const { data: outlets } = useCollection<Outlet>(outletsRef);
+
+  const outlet = outlets?.find(o => o.id === order.outletId);
+  
+  const createdAtDate = useMemo(() => {
+    if (!order.createdAt) return new Date();
+    
+    if (isTimestamp(order.createdAt)) {
+      return order.createdAt.toDate();
+    }
+    if (typeof order.createdAt === 'string') {
+        return new Date(order.createdAt);
+    }
+    // Fallback for seconds/nanos structure from older data if any
+    const seconds = (order.createdAt as any).seconds || (order.createdAt as any)._seconds;
+    if(seconds) {
+        return new Date(seconds * 1000);
+    }
+    return new Date();
+  }, [order.createdAt]);
+
+
+  const timeAgo = Math.round((new Date().getTime() - createdAtDate.getTime()) / (1000 * 60));
 
   const handleStatusUpdate = (newStatus: OrderStatus) => {
-    // In a real app, this would be an API call.
-    // We simulate it here.
-    const updatedOrder = { ...order, status: newStatus };
-    setOrder(updatedOrder);
     if (onStatusChange) {
         onStatusChange(order.id, newStatus);
     }
@@ -61,6 +88,23 @@ export default function OrderCard({ order: initialOrder, isStaffView = false, on
     accepted: { nextStatus: 'preparing', label: 'Start Preparing', icon: <UtensilsCrossed /> },
     preparing: { nextStatus: 'ready', label: 'Ready for Pickup', icon: <PartyPopper /> },
   };
+
+  const parsedItems = useMemo(() => {
+    try {
+        if(typeof order.items === 'string') {
+            return JSON.parse(order.items);
+        }
+        // Handle cases where items might already be an array (e.g. from optimistic updates or older data)
+        if (Array.isArray(order.items)) {
+            return order.items;
+        }
+        return [];
+    } catch(e) {
+        console.error("Failed to parse order items:", e);
+        return [];
+    }
+  }, [order.items]);
+
 
   return (
     <Card className="h-full flex flex-col group transition-all hover:border-primary">
@@ -81,8 +125,8 @@ export default function OrderCard({ order: initialOrder, isStaffView = false, on
           </Badge>
         </div>
         {isStaffView ? (
-           <div className="flex items-center gap-2 pt-2 text-sm text-muted-foreground">
-             <User className="h-4 w-4" /> <span>{order.clientName} ({order.clientId})</span>
+           <div className="flex items-center gap-2 pt-2 text-sm text-muted-foreground truncate">
+             <User className="h-4 w-4 shrink-0" /> <span className="truncate" title={order.clientName}>{order.clientName}</span>
            </div>
         ) : outlet && (
             <div className="flex items-center gap-2 pt-2 text-sm text-muted-foreground">
@@ -91,18 +135,18 @@ export default function OrderCard({ order: initialOrder, isStaffView = false, on
         )}
       </CardHeader>
       <CardContent className="flex-grow space-y-2">
-        <ul className="text-sm space-y-1">
-            {order.items.map(item => (
-                <li key={item.menuItem.id} className="flex justify-between">
-                    <span>{item.menuItem.name} <span className="text-muted-foreground">x{item.quantity}</span></span>
-                    <span>₹{(item.menuItem.priceInr * item.quantity).toFixed(2)}</span>
+         <ul className="text-sm space-y-1">
+            {parsedItems.map((item: any) => (
+                <li key={item.id} className="flex justify-between">
+                    <span className="truncate pr-2">{item.name} <span className="text-muted-foreground">x{item.quantity}</span></span>
+                    <span className="font-mono">₹{(item.priceInr * item.quantity).toFixed(2)}</span>
                 </li>
             ))}
         </ul>
         <Separator />
         <div className="flex justify-between font-bold">
             <span>Total</span>
-            <span>₹{order.totalAmountInr.toFixed(2)}</span>
+            <span className="font-mono">₹{order.totalAmountInr.toFixed(2)}</span>
         </div>
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-4 text-xs text-muted-foreground">
