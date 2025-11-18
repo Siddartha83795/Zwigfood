@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -9,13 +10,15 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { mockUserProfile } from '@/lib/data';
 import { User, Mail, Phone, Home } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import type { UserProfile } from '@/lib/types';
 import BackButton from '@/components/back-button';
-
+import { useDoc, useFirebase, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const profileSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -29,48 +32,56 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 export default function ProfilePage() {
   const { toast } = useToast();
   const router = useRouter();
-  const [userProfile, setUserProfile] = useState<UserProfile>(mockUserProfile);
+  const { user, isUserLoading } = useFirebase();
+  const firestore = useFirestore();
 
-  // Load user profile from localStorage on initial render
-  useEffect(() => {
-    try {
-      const storedProfile = localStorage.getItem('userProfile');
-      if (storedProfile) {
-        setUserProfile(JSON.parse(storedProfile));
-      }
-    } catch (error) {
-      console.error("Failed to parse user profile from localStorage", error);
-    }
-  }, []);
+  const userProfileRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
-    // Use values to ensure the form re-renders when userProfile changes
-    values: userProfile,
+    values: {
+      name: userProfile?.name || '',
+      email: userProfile?.email || user?.email || '',
+      phone: userProfile?.phone || '',
+      address: userProfile?.address || '',
+    },
     mode: 'onTouched'
   });
 
+  useEffect(() => {
+    form.reset({
+      name: userProfile?.name || '',
+      email: userProfile?.email || user?.email || '',
+      phone: userProfile?.phone || '',
+      address: userProfile?.address || '',
+    });
+  }, [userProfile, user, form]);
+
   function onSubmit(data: ProfileFormValues) {
-    console.log('Profile updated:', data);
-    const updatedProfile = {...userProfile, ...data, isProfileComplete: true};
+    if (!userProfileRef || !user) return;
     
-    // Update state
-    setUserProfile(updatedProfile);
+    const updatedProfile = { 
+        id: user.uid,
+        ...data, 
+        isProfileComplete: true 
+    };
     
-    // Persist to localStorage
-    try {
-        localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
-        localStorage.setItem('isProfileComplete', 'true');
-    } catch (error) {
-        console.error("Failed to save user profile to localStorage", error);
-    }
+    setDocumentNonBlocking(userProfileRef, updatedProfile, { merge: true });
 
     toast({
       title: "Profile Updated",
       description: "Your information has been saved successfully.",
     });
-    // Redirect to outlets page after profile completion
     router.push('/outlets');
+  }
+
+  if(isUserLoading || isProfileLoading) {
+    return <ProfilePageSkeleton />;
   }
 
   return (
@@ -120,7 +131,7 @@ export default function ProfilePage() {
                      <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <FormControl>
-                        <Input type="email" placeholder="you@example.com" {...field} className="pl-10" />
+                        <Input type="email" placeholder="you@example.com" {...field} disabled className="pl-10" />
                       </FormControl>
                     </div>
                     <FormMessage />
@@ -169,3 +180,48 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+
+function ProfilePageSkeleton() {
+    return (
+         <div className="container py-12">
+            <div className="mb-8">
+                <BackButton />
+            </div>
+            <div className="text-center mb-8">
+                <Skeleton className="h-12 w-1/2 mx-auto" />
+                <Skeleton className="h-6 w-3/4 mx-auto mt-4" />
+            </div>
+
+            <Card className="max-w-2xl mx-auto">
+                <CardHeader>
+                    <Skeleton className="h-8 w-1/4" />
+                    <Skeleton className="h-4 w-full mt-2" />
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                     <div className="space-y-2">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                     <div className="space-y-2">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                     <div className="space-y-2">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-24 w-full" />
+                    </div>
+                    <div className="flex justify-end">
+                        <Skeleton className="h-10 w-32" />
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+    

@@ -1,27 +1,69 @@
+
 'use client';
 
-import { orders as mockOrdersData } from '@/lib/data';
 import OrderCard from '@/components/order-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Order, OrderStatus } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
+import { useFirestore } from '@/firebase';
+import { collection, getDocs, query, doc, updateDoc } from 'firebase/firestore';
+import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { Skeleton } from '@/components/ui/skeleton';
+
+
+async function getAllOrders(firestore: any): Promise<Order[]> {
+    const usersCollection = collection(firestore, 'users');
+    const usersSnapshot = await getDocs(usersCollection);
+    const allOrders: Order[] = [];
+
+    for (const userDoc of usersSnapshot.docs) {
+        const ordersCollection = collection(firestore, `users/${userDoc.id}/orders`);
+        const ordersSnapshot = await getDocs(ordersCollection);
+        
+        ordersSnapshot.forEach(orderDoc => {
+            allOrders.push({ id: orderDoc.id, ...orderDoc.data() } as Order);
+        });
+    }
+    return allOrders;
+}
 
 
 export default function AllOrdersPage() {
-  const [orders, setOrders] = useState<Order[]>(mockOrdersData);
+  const firestore = useFirestore();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
-    setOrders(prevOrders => prevOrders.map(o => o.id === orderId ? {...o, status: newStatus} : o));
+   useEffect(() => {
+    if (!firestore) return;
+    setIsLoading(true);
+    getAllOrders(firestore)
+        .then(setOrders)
+        .finally(() => setIsLoading(false));
+     
+      const interval = setInterval(() => {
+        getAllOrders(firestore).then(setOrders);
+      }, 30000); // Poll every 30 seconds
+
+      return () => clearInterval(interval);
+  }, [firestore]);
+
+
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus, userId: string) => {
+    if (!firestore) return;
+    const orderRef = doc(firestore, 'users', userId, 'orders', orderId);
+    await updateDocumentNonBlocking(orderRef, { status: newStatus });
+    // Optimistically update local state
+    setOrders(prev => prev.map(o => o.id === orderId ? {...o, status: newStatus} : o));
   };
   
-  const filteredOrders = orders.filter(order => 
+  const filteredOrders = useMemo(() => orders.filter(order => 
     order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.tokenNumber.toString().includes(searchTerm)
-  );
+  ), [orders, searchTerm]);
 
   const activeOrders = filteredOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready'].includes(o.status));
   const pastOrders = filteredOrders.filter(o => ['completed', 'cancelled'].includes(o.status));
@@ -48,49 +90,53 @@ export default function AllOrdersPage() {
           />
         </div>
       </div>
-
-       <Tabs defaultValue="active" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="active">Active Orders ({activeOrders.length})</TabsTrigger>
-          <TabsTrigger value="past">Past Orders ({pastOrders.length})</TabsTrigger>
-        </TabsList>
-        <TabsContent value="active">
-            {activeOrders.length > 0 ? (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                    {activeOrders.map(order => (
-                        <OrderCard 
-                            key={order.id} 
-                            order={order} 
-                            isStaffView={true}
-                            onStatusChange={handleStatusChange}
-                        />
-                    ))}
-                </div>
-            ) : (
-                <div className="text-center py-16">
-                    <p className="text-muted-foreground">No active orders found.</p>
-                </div>
-            )}
-        </TabsContent>
-        <TabsContent value="past">
-            {pastOrders.length > 0 ? (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                    {pastOrders.map(order => (
-                        <OrderCard 
-                            key={order.id} 
-                            order={order} 
-                            isStaffView={true}
-                            onStatusChange={handleStatusChange}
-                        />
-                    ))}
-                </div>
-            ) : (
-                <div className="text-center py-16">
-                    <p className="text-muted-foreground">No past orders found.</p>
-                </div>
-            )}
-        </TabsContent>
-      </Tabs>
+      
+       {isLoading ? <Skeleton className="h-96 w-full" /> : (
+        <Tabs defaultValue="active" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="active">Active Orders ({activeOrders.length})</TabsTrigger>
+            <TabsTrigger value="past">Past Orders ({pastOrders.length})</TabsTrigger>
+            </TabsList>
+            <TabsContent value="active">
+                {activeOrders.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                        {activeOrders.map(order => (
+                            <OrderCard 
+                                key={order.id} 
+                                order={order} 
+                                isStaffView={true}
+                                onStatusChange={(orderId, newStatus) => handleStatusChange(orderId, newStatus, order.clientId)}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-16 text-muted-foreground">
+                        <p>No active orders found.</p>
+                    </div>
+                )}
+            </TabsContent>
+            <TabsContent value="past">
+                {pastOrders.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                        {pastOrders.map(order => (
+                            <OrderCard 
+                                key={order.id} 
+                                order={order} 
+                                isStaffView={true}
+                                onStatusChange={(orderId, newStatus) => handleStatusChange(orderId, newStatus, order.clientId)}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-16 text-muted-foreground">
+                        <p>No past orders found.</p>
+                    </div>
+                )}
+            </TabsContent>
+        </Tabs>
+       )}
     </div>
   );
 }
+
+    

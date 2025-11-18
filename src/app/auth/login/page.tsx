@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -6,19 +7,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Mail, KeyRound, User, Phone, Building } from 'lucide-react';
+import { Mail, KeyRound, User, Building } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { outlets } from '@/lib/data';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import {
+  initiateEmailSignIn,
+  initiateEmailSignUp,
+  initiateAnonymousSignIn
+} from '@/firebase/non-blocking-login';
+import type { Outlet } from '@/lib/types';
+import { collection } from 'firebase/firestore';
 
 const clientSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
-  phone: z.string().regex(/^\+91\d{10}$/, { message: "Phone number must be in the format +91XXXXXXXXXX and have 10 digits." }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 });
 type ClientFormValues = z.infer<typeof clientSchema>;
 
@@ -31,14 +39,22 @@ type StaffFormValues = z.infer<typeof staffSchema>;
 export default function LoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [selectedOutlet, setSelectedOutlet] = useState(outlets[0].id);
+    const [selectedOutlet, setSelectedOutlet] = useState<string | undefined>(undefined);
+    const auth = useAuth();
+    const firestore = useFirestore();
+
+    const outletsRef = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, 'outlets');
+    }, [firestore]);
+    const { data: outlets } = useCollection<Outlet>(outletsRef);
 
     const clientForm = useForm<ClientFormValues>({
         resolver: zodResolver(clientSchema),
         mode: 'onTouched',
         defaultValues: {
             email: '',
-            phone: '',
+            password: '',
         },
     });
 
@@ -50,26 +66,41 @@ export default function LoginPage() {
         },
     });
 
-    const onClientSubmit: SubmitHandler<ClientFormValues> = (data) => {
-        console.log("Client Login Data:", data);
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('userRole', 'client');
+    const onClientLogin: SubmitHandler<ClientFormValues> = (data) => {
+        initiateEmailSignIn(auth, data.email, data.password);
         toast({
-            title: "Client Login Successful",
-            description: "Welcome back!",
+            title: "Logging In...",
+            description: "Please wait while we sign you in.",
         });
         router.push('/outlets');
+    };
+    
+    const onClientSignUp: SubmitHandler<ClientFormValues> = (data) => {
+        initiateEmailSignUp(auth, data.email, data.password);
+        toast({
+            title: "Creating Account...",
+            description: "Please wait while we create your account.",
+        });
+        router.push('/profile');
     };
 
     const onStaffSubmit: SubmitHandler<StaffFormValues> = (data) => {
         if (data.username === 'admin' && data.password === 'admin123') {
-            localStorage.setItem('isLoggedIn', 'true');
-            localStorage.setItem('userRole', 'staff');
+            initiateAnonymousSignIn(auth);
             toast({
                 title: "Staff Login Successful",
                 description: "Redirecting to dashboard...",
             });
-            router.push(`/staff/dashboard/${selectedOutlet}`);
+            const outletToRedirect = selectedOutlet || outlets?.[0]?.id;
+            if (outletToRedirect) {
+                router.push(`/staff/dashboard/${outletToRedirect}`);
+            } else {
+                 toast({
+                    variant: 'destructive',
+                    title: "No Outlets Found",
+                    description: "Cannot log in as staff.",
+                });
+            }
         } else {
             toast({
                 variant: 'destructive',
@@ -92,11 +123,11 @@ export default function LoginPage() {
           <Card>
             <CardHeader className="text-center">
               <CardTitle className="font-headline text-3xl">Client Login</CardTitle>
-              <CardDescription>Enter your credentials to sign in.</CardDescription>
+              <CardDescription>Enter your credentials to sign in or create an account.</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...clientForm}>
-                <form onSubmit={clientForm.handleSubmit(onClientSubmit)} className="space-y-4">
+                <form className="space-y-4">
                   <FormField
                     control={clientForm.control}
                     name="email"
@@ -115,23 +146,28 @@ export default function LoginPage() {
                   />
                   <FormField
                     control={clientForm.control}
-                    name="phone"
+                    name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <FormLabel>Password</FormLabel>
+                         <div className="relative">
+                           <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <FormControl>
-                            <Input type="tel" placeholder="+91XXXXXXXXXX" {...field} className="pl-10" />
+                            <Input type="password" placeholder="••••••••" {...field} className="pl-10" />
                           </FormControl>
                         </div>
                          <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full" disabled={!clientForm.formState.isValid}>
-                    Login as Client
-                  </Button>
+                  <div className="flex gap-2 pt-4">
+                    <Button type="button" className="w-full" onClick={clientForm.handleSubmit(onClientLogin)} disabled={!clientForm.formState.isValid}>
+                      Login
+                    </Button>
+                     <Button type="button" variant="secondary" className="w-full" onClick={clientForm.handleSubmit(onClientSignUp)} disabled={!clientForm.formState.isValid}>
+                      Sign Up
+                    </Button>
+                  </div>
                 </form>
               </Form>
             </CardContent>
@@ -157,7 +193,7 @@ export default function LoginPage() {
                                 <SelectValue placeholder="Select an outlet" />
                             </SelectTrigger>
                             <SelectContent>
-                                {outlets.map(outlet => (
+                                {outlets?.map(outlet => (
                                     <SelectItem key={outlet.id} value={outlet.id}>{outlet.name}</SelectItem>
                                 ))}
                             </SelectContent>
@@ -211,3 +247,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
