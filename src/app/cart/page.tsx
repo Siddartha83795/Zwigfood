@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/context/cart-context';
@@ -9,52 +8,22 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Minus, Plus, Trash2, Wand2, ArrowLeft, Loader2, Info } from 'lucide-react';
+import { Minus, Plus, Trash2, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { predictWaitTime } from '@/app/actions';
-import type { PredictWaitTimeOutput } from '@/ai/flows/intelligent-wait-time-prediction';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import BackButton from '@/components/back-button';
 
 export default function CartPage() {
-  const { cart, removeFromCart, updateQuantity, cartTotal, itemCount, outletId } = useCart();
+  const { cart, removeFromCart, updateQuantity, cartTotal, itemCount } = useCart();
   const router = useRouter();
-  const [prediction, setPrediction] = useState<PredictWaitTimeOutput | null>(null);
-  const [isPredicting, setIsPredicting] = useState(false);
-  const [predictionError, setPredictionError] = useState<string | null>(null);
 
   const handlePlaceOrder = () => {
     // Mock order placement
     const mockOrderData = {
       token: Math.floor(100 + Math.random() * 900),
-      eta: prediction?.estimatedWaitTime || Math.floor(15 + Math.random() * 10),
+      eta: Math.floor(15 + Math.random() * 10),
     };
     router.push(`/order-confirmation?token=${mockOrderData.token}&eta=${mockOrderData.eta}`);
   };
-  
-  const handlePredictWaitTime = async () => {
-    if (!outletId || cart.length === 0) return;
-    setIsPredicting(true);
-    setPredictionError(null);
-    setPrediction(null);
-    
-    const input = {
-      outletId,
-      itemIds: cart.flatMap(item => Array(item.quantity).fill(item.menuItem.id)),
-      orderTime: new Date().toISOString(),
-      queueDepth: Math.floor(Math.random() * 10), // Mocked queue depth
-    };
-
-    const result = await predictWaitTime(input);
-    if(result.success && result.data) {
-      setPrediction(result.data);
-    } else {
-      setPredictionError(result.error || 'An unknown error occurred.');
-    }
-    
-    setIsPredicting(false);
-  };
-
 
   if (itemCount === 0) {
     return (
@@ -131,27 +100,6 @@ export default function CartPage() {
               <div className="flex justify-between font-bold text-lg">
                 <p>Grand Total</p>
                 <p>₹{(cartTotal * 1.05).toFixed(2)}</p>
-              </div>
-              <Separator />
-              <div className="space-y-2">
-                <Button onClick={handlePredictWaitTime} disabled={isPredicting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-                  {isPredicting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                  Predict Wait Time with AI
-                </Button>
-                {prediction && (
-                    <Alert>
-                        <Info className="h-4 w-4" />
-                        <AlertTitle>AI Prediction: ~{prediction.estimatedWaitTime} minutes</AlertTitle>
-                        <AlertDescription className="text-xs">{prediction.reasoning}</AlertDescription>
-                    </Alert>
-                )}
-                {predictionError && (
-                    <Alert variant="destructive">
-                        <Info className="h-4 w-4" />
-                        <AlertTitle>Prediction Failed</AlertTitle>
-                        <AlertDescription className="text-xs">{predictionError}</AlertDescription>
-                    </Alert>
-                )}
               </div>
             </CardContent>
             <CardFooter>
