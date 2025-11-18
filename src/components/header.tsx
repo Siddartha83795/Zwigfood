@@ -103,7 +103,7 @@ export default function Header() {
         <div className="flex flex-1 items-center justify-end gap-2">
            <ThemeToggle />
            
-          {isLoggedIn && userRole === 'client' && (
+          {isLoggedIn && userRole === 'client' && pathname !== '/' && (
             <Button asChild variant="ghost" size="icon" className="relative">
                 <Link href="/cart">
                     <ShoppingCart className="h-5 w-5"/>
