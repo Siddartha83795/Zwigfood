@@ -11,16 +11,18 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import BackButton from '@/components/back-button';
 import { Input } from '@/components/ui/input';
-import { useFirebase } from '@/firebase';
+import { useFirebase, useUser } from '@/firebase';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection } from 'firebase/firestore';
+import { collection, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import type { Order } from '@/lib/types';
 
 
 export default function CartPage() {
   const { cart, removeFromCart, updateQuantity, cartTotal, itemCount, clearCart, outletId } = useCart();
   const router = useRouter();
-  const { firestore, user } = useFirebase();
+  const { firestore } = useFirebase();
+  const { user } = useUser();
   const { toast } = useToast();
 
   
@@ -29,29 +31,29 @@ export default function CartPage() {
        toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'You must be logged in to place an order.',
+        description: 'You must be logged in and have selected an outlet to place an order.',
       });
       return;
     }
     
     // In a real app, this would involve a more robust order creation process on the backend
-    const orderData = {
+    const orderData: Omit<Order, 'id'> = {
       clientId: user.uid,
       outletId: outletId,
-      items: JSON.stringify(cart.map(item => ({id: item.menuItem.id, quantity: item.quantity }))),
-      totalAmountInr: cartTotal * 1.05,
+      items: JSON.stringify(cart.map(item => ({ id: item.menuItem.id, name: item.menuItem.name, quantity: item.quantity, priceInr: item.menuItem.priceInr }))),
+      totalAmountInr: cartTotal * 1.05, // Including 5% tax
       status: 'pending',
       paymentStatus: 'Paid', // Assuming pre-paid
-      orderNumber: `DH-${Math.floor(1000 + Math.random() * 9000)}`,
+      orderNumber: `DH-${Date.now().toString().slice(-6)}`,
       tokenNumber: Math.floor(100 + Math.random() * 900),
       paymentMethod: 'Wallet', // Mock
-      estimatedWaitTime: Math.floor(15 + Math.random() * 10),
-      createdAt: new Date().toISOString(),
-      clientName: user.email,
+      estimatedWaitTime: Math.floor(15 + Math.random() * 10), // This could be more intelligent
+      createdAt: serverTimestamp(),
+      clientName: user.displayName || user.email || 'Anonymous',
     };
     
     const ordersColRef = collection(firestore, 'users', user.uid, 'orders');
-    await addDocumentNonBlocking(ordersColRef, orderData);
+    const orderDoc = await addDocumentNonBlocking(ordersColRef, orderData);
 
     toast({
       title: 'Order Placed!',
@@ -63,7 +65,7 @@ export default function CartPage() {
     
     clearCart();
     
-    router.push(`/order-confirmation?token=${token}&eta=${eta}`);
+    router.push(`/order-confirmation?token=${token}&eta=${eta}&orderId=${orderDoc?.id}`);
   };
 
   if (itemCount === 0) {
@@ -96,8 +98,8 @@ export default function CartPage() {
                   const image = PlaceHolderImages.find(img => img.id === menuItem.imageId);
                   return (
                     <li key={menuItem.id} className="flex items-center gap-4 p-4">
-                      <div className="relative h-20 w-20 rounded-md overflow-hidden">
-                        {image && <Image src={image.imageUrl} alt={menuItem.name} fill className="object-cover" data-ai-hint={image.imageHint} />}
+                      <div className="relative h-20 w-20 rounded-md overflow-hidden shrink-0">
+                        {image ? <Image src={image.imageUrl} alt={menuItem.name} fill className="object-cover" data-ai-hint={image.imageHint} /> : <div className="bg-muted h-full w-full"/>}
                       </div>
                       <div className="flex-grow">
                         <p className="font-semibold">{menuItem.name}</p>
@@ -134,7 +136,7 @@ export default function CartPage() {
                 <p>₹{cartTotal.toFixed(2)}</p>
               </div>
               <div className="flex justify-between">
-                <p>Taxes & Charges</p>
+                <p>Taxes & Charges (5%)</p>
                 <p>₹{(cartTotal * 0.05).toFixed(2)}</p>
               </div>
               <Separator />

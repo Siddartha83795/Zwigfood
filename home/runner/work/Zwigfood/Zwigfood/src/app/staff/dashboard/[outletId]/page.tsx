@@ -4,9 +4,9 @@ import { notFound } from 'next/navigation';
 import OrderCard from '@/components/order-card';
 import type { Order, OrderStatus, Outlet } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useMemo, use } from 'react';
+import { use, useMemo } from 'react';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, query, updateDoc, where, getDocs, writeBatch } from 'firebase/firestore';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -16,10 +16,32 @@ type StatusColumn = {
 };
 
 const columns: StatusColumn[] = [
-    { title: "New Orders", statuses: ['pending', 'accepted'] },
+    { title: "New Orders", statuses: ['pending'] },
+    { title: "Accepted", statuses: ['accepted'] },
     { title: "In Preparation", statuses: ['preparing'] },
     { title: "Ready for Pickup", statuses: ['ready'] }
 ];
+
+async function getOrdersByOutlet(firestore: any, outletId: string): Promise<Order[]> {
+    const usersCollection = collection(firestore, 'users');
+    const usersSnapshot = await getDocs(usersCollection);
+    const allOrders: Order[] = [];
+    const batch = writeBatch(firestore);
+
+    for (const userDoc of usersSnapshot.docs) {
+        const ordersCollection = collection(firestore, `users/${userDoc.id}/orders`);
+        const ordersQuery = query(ordersCollection, where('outletId', '==', outletId));
+        const ordersSnapshot = await getDocs(ordersQuery);
+        
+        ordersSnapshot.forEach(orderDoc => {
+            allOrders.push({ id: orderDoc.id, ...orderDoc.data() } as Order);
+        });
+    }
+
+    await batch.commit().catch(console.error); // Batch might be empty, that's okay
+    return allOrders;
+}
+
 
 function StaffDashboardPageContent({ outletId }: { outletId: string }) {
   const firestore = useFirestore();
@@ -30,16 +52,28 @@ function StaffDashboardPageContent({ outletId }: { outletId: string }) {
   }, [firestore, outletId]);
 
   const {data: outlet, isLoading: isOutletLoading} = useDoc<Outlet>(outletRef);
-
-  const ordersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    // This is not ideal, we should query all orders for an outlet
-    // But our rules and data structure don't support that easily.
-    // We will query all orders and filter client side.
-    return query(collection(firestore, 'users/user-charlie-789/orders'), where('outletId', '==', outletId));
-  }, [firestore, outletId]);
   
-  const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+  // We can't use a hook here because the query is dynamic across all users.
+  // This is a simplified approach for this app. A real-world app would use a different data model or backend functions.
+  const [orders, setOrders] = React.useState<Order[]>([]);
+  const [areOrdersLoading, setAreOrdersLoading] = React.useState(true);
+
+  React.useEffect(() => {
+      if (!firestore) return;
+      setAreOrdersLoading(true);
+      getOrdersByOutlet(firestore, outletId)
+        .then(setOrders)
+        .finally(() => setAreOrdersLoading(false));
+
+      // This is not real-time, but we can poll for simplicity
+      const interval = setInterval(() => {
+        getOrdersByOutlet(firestore, outletId).then(setOrders);
+      }, 15000); // Poll every 15 seconds
+
+      return () => clearInterval(interval);
+
+  }, [firestore, outletId]);
+
 
   if (isOutletLoading) {
     return <StaffDashboardSkeleton />;
@@ -51,13 +85,14 @@ function StaffDashboardPageContent({ outletId }: { outletId: string }) {
   
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus, userId: string) => {
     if (!firestore) return;
-    // This is brittle, we need the user id to update.
     const orderRef = doc(firestore, 'users', userId, 'orders', orderId);
     await updateDocumentNonBlocking(orderRef, { status: newStatus });
+    // Optimistically update local state
+    setOrders(prev => prev.map(o => o.id === orderId ? {...o, status: newStatus} : o));
   };
   
   const getOrdersForColumn = (statuses: OrderStatus[]) => {
-      return orders?.filter(o => statuses.includes(o.status)) || [];
+      return orders.filter(o => statuses.includes(o.status)).sort((a,b) => (a.createdAt as any) - (b.createdAt as any));
   }
 
   return (
@@ -67,7 +102,7 @@ function StaffDashboardPageContent({ outletId }: { outletId: string }) {
             <p className="text-muted-foreground">{outlet.name}</p>
         </div>
         <div className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-hidden">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 h-full">
                 {columns.map(col => {
                     const columnOrders = getOrdersForColumn(col.statuses);
                     return (
@@ -111,8 +146,8 @@ function StaffDashboardSkeleton() {
                 <Skeleton className="h-5 w-1/4 mt-2" />
             </div>
             <div className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-hidden">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
-                    {[...Array(3)].map((_, i) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 h-full">
+                    {[...Array(4)].map((_, i) => (
                         <div key={i} className="bg-card rounded-lg flex flex-col h-full overflow-hidden">
                             <div className="p-4 border-b">
                                 <Skeleton className="h-6 w-1/2" />

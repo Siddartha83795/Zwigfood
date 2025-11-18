@@ -14,11 +14,10 @@ import {
   DropdownMenuSubContent
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, UtensilsCrossed, User, ShoppingCart, LogOut, LayoutDashboard, Building } from 'lucide-react';
+import { Menu, UtensilsCrossed, User, ShoppingCart, LogOut, LayoutDashboard, Building, Sun, Moon } from 'lucide-react';
 import { useCart } from '@/context/cart-context';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { useTheme } from "next-themes"
 import { usePathname, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
 import { useAuth, useCollection, useFirebase, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import type { Outlet } from '@/lib/types';
@@ -31,8 +30,7 @@ const clientNavLinks = [
 ];
 
 const staffNavLinks = [
-    { href: '/staff/orders/active', label: 'Active Orders' },
-    { href: '/staff/orders/all', label: 'All Orders' },
+    // Staff links can be added here if needed in the future
 ];
 
 
@@ -42,6 +40,8 @@ export default function Header() {
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const { setTheme } = useTheme();
+
 
   const outletsRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -69,8 +69,8 @@ export default function Header() {
                     </Link>
                 </div>
                  <div className="flex flex-1 items-center justify-end gap-2">
-                    <div className="h-10 w-10" />
-                    <div className="h-10 w-24" />
+                    <div className="h-10 w-10 bg-muted rounded-full" />
+                    <div className="h-10 w-24 bg-muted rounded-md" />
                  </div>
             </div>
         </header>
@@ -102,7 +102,26 @@ export default function Header() {
            )}
         </div>
         <div className="flex flex-1 items-center justify-end gap-2">
-           <ThemeToggle />
+           <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                <span className="sr-only">Toggle theme</span>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setTheme("light")}>
+                Light
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("dark")}>
+                Dark
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("system")}>
+                System
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+            </DropdownMenu>
            
           {user && !user.isAnonymous && (
             <Button asChild variant="ghost" size="icon" className="relative">
@@ -127,7 +146,7 @@ export default function Header() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuLabel>{user.isAnonymous ? 'Staff Account' : (user.email || 'My Account')}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {!user.isAnonymous && (
                     <>

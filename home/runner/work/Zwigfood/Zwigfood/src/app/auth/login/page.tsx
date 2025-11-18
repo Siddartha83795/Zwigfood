@@ -6,21 +6,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Mail, KeyRound, User, Phone, Building } from 'lucide-react';
+import { Mail, KeyRound, User, Building } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { outlets } from '@/lib/data';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useAuth } from '@/firebase';
+import { useAuth, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import {
   initiateEmailSignIn,
   initiateEmailSignUp,
   initiateAnonymousSignIn
 } from '@/firebase/non-blocking-login';
+import type { Outlet } from '@/lib/types';
+import { collection } from 'firebase/firestore';
 
 const clientSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -37,8 +38,15 @@ type StaffFormValues = z.infer<typeof staffSchema>;
 export default function LoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [selectedOutlet, setSelectedOutlet] = useState(outlets[0].id);
+    const [selectedOutlet, setSelectedOutlet] = useState<string | undefined>(undefined);
     const auth = useAuth();
+    const firestore = useFirestore();
+
+    const outletsRef = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, 'outlets');
+    }, [firestore]);
+    const { data: outlets } = useCollection<Outlet>(outletsRef);
 
     const clientForm = useForm<ClientFormValues>({
         resolver: zodResolver(clientSchema),
@@ -72,7 +80,7 @@ export default function LoginPage() {
             title: "Creating Account...",
             description: "Please wait while we create your account.",
         });
-        router.push('/outlets');
+        router.push('/profile');
     };
 
     const onStaffSubmit: SubmitHandler<StaffFormValues> = (data) => {
@@ -82,7 +90,16 @@ export default function LoginPage() {
                 title: "Staff Login Successful",
                 description: "Redirecting to dashboard...",
             });
-            router.push(`/staff/dashboard/${selectedOutlet}`);
+            const outletToRedirect = selectedOutlet || outlets?.[0]?.id;
+            if (outletToRedirect) {
+                router.push(`/staff/dashboard/${outletToRedirect}`);
+            } else {
+                 toast({
+                    variant: 'destructive',
+                    title: "No Outlets Found",
+                    description: "Cannot log in as staff.",
+                });
+            }
         } else {
             toast({
                 variant: 'destructive',
@@ -105,11 +122,11 @@ export default function LoginPage() {
           <Card>
             <CardHeader className="text-center">
               <CardTitle className="font-headline text-3xl">Client Login</CardTitle>
-              <CardDescription>Enter your credentials to sign in or sign up.</CardDescription>
+              <CardDescription>Enter your credentials to sign in or create an account.</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...clientForm}>
-                <form onSubmit={clientForm.handleSubmit(onClientLogin)} className="space-y-4">
+                <form className="space-y-4">
                   <FormField
                     control={clientForm.control}
                     name="email"
@@ -135,15 +152,15 @@ export default function LoginPage() {
                          <div className="relative">
                            <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <FormControl>
-                            <Input type="password" {...field} className="pl-10" />
+                            <Input type="password" placeholder="••••••••" {...field} className="pl-10" />
                           </FormControl>
                         </div>
                          <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <div className="flex gap-2">
-                    <Button type="submit" className="w-full" disabled={!clientForm.formState.isValid}>
+                  <div className="flex gap-2 pt-4">
+                    <Button type="button" className="w-full" onClick={clientForm.handleSubmit(onClientLogin)} disabled={!clientForm.formState.isValid}>
                       Login
                     </Button>
                      <Button type="button" variant="secondary" className="w-full" onClick={clientForm.handleSubmit(onClientSignUp)} disabled={!clientForm.formState.isValid}>
@@ -170,12 +187,12 @@ export default function LoginPage() {
                     <Label htmlFor="outlet">Select Outlet</Label>
                     <div className="relative">
                         <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Select value={selectedOutlet} onValueChange={setSelectedOutlet}>
+                        <Select value={selectedOutlet || outlets?.[0]?.id} onValueChange={setSelectedOutlet}>
                             <SelectTrigger className="pl-10">
                                 <SelectValue placeholder="Select an outlet" />
                             </SelectTrigger>
                             <SelectContent>
-                                {outlets.map(outlet => (
+                                {outlets?.map(outlet => (
                                     <SelectItem key={outlet.id} value={outlet.id}>{outlet.name}</SelectItem>
                                 ))}
                             </SelectContent>

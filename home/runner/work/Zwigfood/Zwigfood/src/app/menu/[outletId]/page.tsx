@@ -56,7 +56,7 @@ function MenuPageContent({ outletId }: { outletId: string }) {
         {outletImage && (
           <Image
             src={outletImage.imageUrl}
-            alt={outletImage.description}
+            alt={outlet.name}
             fill
             className="object-cover"
             data-ai-hint={outletImage.imageHint}
@@ -77,7 +77,7 @@ function MenuPageContent({ outletId }: { outletId: string }) {
       <div className="container py-12">
         {areMenuItemsLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-96 w-full" />)}
+                {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-96 w-full" />)}
             </div>
         ) : (
             categories.map(category => (

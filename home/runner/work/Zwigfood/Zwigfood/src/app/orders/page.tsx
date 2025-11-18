@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useCollection, useFirebase, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order } from '@/lib/types';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function OrdersPage() {
@@ -16,7 +16,8 @@ export default function OrdersPage() {
   const ordersQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
-      collection(firestore, `users/${user.uid}/orders`)
+      collection(firestore, `users/${user.uid}/orders`),
+      orderBy('createdAt', 'desc')
     );
   }, [firestore, user]);
 
@@ -46,8 +47,8 @@ export default function OrdersPage() {
   if (!clientOrders || clientOrders.length === 0) {
     return (
        <div className="container py-12 text-center">
-        <h1 className="text-3xl font-bold font-headline">You have no orders yet</h1>
-        <p className="mt-4 text-muted-foreground">Looks like you haven&apos;t placed an order.</p>
+        <h1 className="text-3xl font-bold font-headline">No Orders Found</h1>
+        <p className="mt-4 text-muted-foreground">You haven't placed any orders yet.</p>
         <Button asChild className="mt-8">
           <Link href="/outlets">
             Order Now
@@ -70,8 +71,8 @@ export default function OrdersPage() {
 
        <Tabs defaultValue="active" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="active">Active Orders</TabsTrigger>
-          <TabsTrigger value="past">Past Orders</TabsTrigger>
+          <TabsTrigger value="active">Active Orders ({activeOrders.length})</TabsTrigger>
+          <TabsTrigger value="past">Past Orders ({pastOrders.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="active">
             {activeOrders.length > 0 ? (
@@ -81,8 +82,8 @@ export default function OrdersPage() {
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-16">
-                    <p className="text-muted-foreground">You have no active orders.</p>
+                <div className="text-center py-16 text-muted-foreground">
+                    <p>You have no active orders.</p>
                 </div>
             )}
         </TabsContent>
@@ -94,8 +95,8 @@ export default function OrdersPage() {
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-16">
-                    <p className="text-muted-foreground">You have no past orders.</p>
+                <div className="text-center py-16 text-muted-foreground">
+                    <p>You have no past orders.</p>
                 </div>
             )}
         </TabsContent>
