@@ -11,19 +11,59 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import BackButton from '@/components/back-button';
 import { Input } from '@/components/ui/input';
+import { useFirebase } from '@/firebase';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 
 export default function CartPage() {
-  const { cart, removeFromCart, updateQuantity, cartTotal, itemCount } = useCart();
+  const { cart, removeFromCart, updateQuantity, cartTotal, itemCount, clearCart, outletId } = useCart();
   const router = useRouter();
+  const { firestore, user } = useFirebase();
+  const { toast } = useToast();
+
   
-  const handlePlaceOrder = () => {
-    // Mock order placement
-    const mockOrderData = {
-      token: Math.floor(100 + Math.random() * 900),
-      eta: Math.floor(15 + Math.random() * 10),
+  const handlePlaceOrder = async () => {
+    if (!user || !firestore || !outletId) {
+       toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'You must be logged in to place an order.',
+      });
+      return;
+    }
+    
+    // In a real app, this would involve a more robust order creation process on the backend
+    const orderData = {
+      clientId: user.uid,
+      outletId: outletId,
+      items: JSON.stringify(cart.map(item => ({id: item.menuItem.id, quantity: item.quantity }))),
+      totalAmountInr: cartTotal * 1.05,
+      status: 'pending',
+      paymentStatus: 'Paid', // Assuming pre-paid
+      orderNumber: `DH-${Math.floor(1000 + Math.random() * 9000)}`,
+      tokenNumber: Math.floor(100 + Math.random() * 900),
+      paymentMethod: 'Wallet', // Mock
+      estimatedWaitTime: Math.floor(15 + Math.random() * 10),
+      createdAt: new Date().toISOString(),
+      clientName: user.email,
     };
-    router.push(`/order-confirmation?token=${mockOrderData.token}&eta=${mockOrderData.eta}`);
+    
+    const ordersColRef = collection(firestore, 'users', user.uid, 'orders');
+    await addDocumentNonBlocking(ordersColRef, orderData);
+
+    toast({
+      title: 'Order Placed!',
+      description: 'Your order has been successfully placed.',
+    });
+    
+    const token = orderData.tokenNumber;
+    const eta = orderData.estimatedWaitTime;
+    
+    clearCart();
+    
+    router.push(`/order-confirmation?token=${token}&eta=${eta}`);
   };
 
   if (itemCount === 0) {
@@ -104,7 +144,7 @@ export default function CartPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button size="lg" className="w-full" onClick={handlePlaceOrder}>
+              <Button size="lg" className="w-full" onClick={handlePlaceOrder} disabled={!user}>
                 Place Order
               </Button>
             </CardFooter>
