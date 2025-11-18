@@ -1,15 +1,23 @@
 
-import next from 'eslint-config-next/core-web-vitals';
-
-/** @type {import('eslint').Linter.Config[]} */
-const config = [
-  next,
+import { defineConfig, globalIgnores } from 'eslint/config'
+import nextVitals from 'eslint-config-next/core-web-vitals.js'
+ 
+const eslintConfig = defineConfig([
+  ...nextVitals,
   {
     rules: {
       '@next/next/no-page-custom-font': 'off',
-      'react/no-unescaped-entities': 'off', // Disabling for now to allow build to pass
+      'react/no-unescaped-entities': 'off',
     },
   },
-];
-
-export default config;
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
+  ]),
+])
+ 
+export default eslintConfig
