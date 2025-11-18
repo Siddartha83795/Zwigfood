@@ -1,4 +1,4 @@
-import type { Outlet, MenuItem, Order, UserProfile } from './types';
+import type { Outlet, MenuItem, Order, UserProfile } from '@/lib/types';
 
 export const outlets: Outlet[] = [
   {

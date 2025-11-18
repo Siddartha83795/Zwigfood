@@ -16,7 +16,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu, UtensilsCrossed, User, ShoppingCart, LogOut, LayoutDashboard, Building } from 'lucide-react';
 import { useCart } from '@/context/cart-context';
-import { ThemeToggle } from './theme-toggle';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useAuth, useCollection, useFirebase, useFirestore, useMemoFirebase, useUser } from '@/firebase';

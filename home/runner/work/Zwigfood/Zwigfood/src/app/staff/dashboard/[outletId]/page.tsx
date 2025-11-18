@@ -2,10 +2,10 @@
 
 import { notFound } from 'next/navigation';
 import OrderCard from '@/components/order-card';
-import type { Order, OrderStatus } from '@/lib/types';
+import type { Order, OrderStatus, Outlet } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useMemo, use } from 'react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, updateDoc, where } from 'firebase/firestore';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,12 +24,12 @@ const columns: StatusColumn[] = [
 function StaffDashboardPageContent({ outletId }: { outletId: string }) {
   const firestore = useFirestore();
 
-  const outletQuery = useMemoFirebase(() => {
+  const outletRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, 'outlets', outletId);
   }, [firestore, outletId]);
 
-  const {data: outlet, isLoading: isOutletLoading} = useCollection<Order>(outletQuery);
+  const {data: outlet, isLoading: isOutletLoading} = useDoc<Outlet>(outletRef);
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
