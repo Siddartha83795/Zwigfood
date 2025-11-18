@@ -54,6 +54,9 @@ export default function OrderCard({ order, isStaffView = false, onStatusChange }
     if (order.createdAt instanceof Timestamp) {
       return order.createdAt.toDate();
     }
+     if (typeof (order.createdAt as any)?.toDate === 'function') {
+      return (order.createdAt as any).toDate();
+    }
     if (typeof order.createdAt === 'string') {
         return new Date(order.createdAt);
     }

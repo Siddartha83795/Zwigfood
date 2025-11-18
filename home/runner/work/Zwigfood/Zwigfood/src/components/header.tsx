@@ -29,7 +29,7 @@ const clientNavLinks = [
   { href: '/orders', label: 'My Orders' },
 ];
 
-const staffNavLinks = [
+const staffNavLinks: { href: string; label: string }[] = [
     // Staff links can be added here if needed in the future
 ];
 

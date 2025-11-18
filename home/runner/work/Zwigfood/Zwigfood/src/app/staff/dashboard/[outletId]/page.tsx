@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import OrderCard from '@/components/order-card';
 import type { Order, OrderStatus, Outlet } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { use, useMemo } from 'react';
+import React, { use, useMemo } from 'react';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, updateDoc, where, getDocs, writeBatch } from 'firebase/firestore';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -92,7 +92,7 @@ function StaffDashboardPageContent({ outletId }: { outletId: string }) {
   };
   
   const getOrdersForColumn = (statuses: OrderStatus[]) => {
-      return orders.filter(o => statuses.includes(o.status)).sort((a,b) => (a.createdAt as any) - (b.createdAt as any));
+      return orders.filter(o => statuses.includes(o.status)).sort((a,b) => ((a.createdAt as any)?.seconds ?? 0) - ((b.createdAt as any)?.seconds ?? 0));
   }
 
   return (

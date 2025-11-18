@@ -13,7 +13,7 @@ import BackButton from '@/components/back-button';
 import { Input } from '@/components/ui/input';
 import { useFirebase, useUser } from '@/firebase';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, serverTimestamp } from 'firebase/firestore';
+import { collection, serverTimestamp, FieldValue } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { Order } from '@/lib/types';
 
@@ -37,7 +37,7 @@ export default function CartPage() {
     }
     
     // In a real app, this would involve a more robust order creation process on the backend
-    const orderData: Omit<Order, 'id'> = {
+    const orderData: Omit<Order, 'id' | 'createdAt'> & { createdAt: FieldValue } = {
       clientId: user.uid,
       outletId: outletId,
       items: JSON.stringify(cart.map(item => ({ id: item.menuItem.id, name: item.menuItem.name, quantity: item.quantity, priceInr: item.menuItem.priceInr }))),
