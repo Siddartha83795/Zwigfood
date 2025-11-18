@@ -16,10 +16,13 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu, UtensilsCrossed, User, ShoppingCart, LogOut, LayoutDashboard, Building } from 'lucide-react';
 import { useCart } from '@/context/cart-context';
-import { ThemeToggle } from './theme-toggle';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { outlets } from '@/lib/data';
+import { useAuth, useCollection, useFirebase, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import type { Outlet } from '@/lib/types';
+import { collection } from 'firebase/firestore';
 
 
 const clientNavLinks = [
@@ -35,29 +38,27 @@ const staffNavLinks = [
 
 export default function Header() {
   const { itemCount } = useCart();
-  const [isMounted, setIsMounted] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const pathname = usePathname();
   const router = useRouter();
-  
-  useEffect(() => {
-    setIsMounted(true);
-    setIsLoggedIn(localStorage.getItem('isLoggedIn') === 'true');
-    setUserRole(localStorage.getItem('userRole'));
-  }, [pathname]);
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
 
-  const handleLogout = () => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userRole');
-    setIsLoggedIn(false);
-    setUserRole(null);
+  const outletsRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'outlets');
+  }, [firestore]);
+  const { data: outlets } = useCollection<Outlet>(outletsRef);
+
+  const handleLogout = async () => {
+    if (auth) {
+      await signOut(auth);
+    }
     router.push('/auth/login');
   };
 
-  const navLinks = userRole === 'staff' ? staffNavLinks : clientNavLinks;
+  const navLinks = user?.isAnonymous ? staffNavLinks : clientNavLinks;
   
-  if (!isMounted) {
+  if (isUserLoading) {
     return (
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container flex h-16 items-center">
@@ -86,7 +87,7 @@ export default function Header() {
               DineHub
             </span>
           </Link>
-           {isLoggedIn && (
+           {user && (
               <nav className="hidden gap-6 md:flex">
                 {navLinks.map((link) => (
                   <Link
@@ -103,21 +104,7 @@ export default function Header() {
         <div className="flex flex-1 items-center justify-end gap-2">
            <ThemeToggle />
            
-          {isLoggedIn && userRole === 'client' && pathname !== '/' && (
-            <Button asChild variant="ghost" size="icon" className="relative">
-                <Link href="/cart">
-                    <ShoppingCart className="h-5 w-5"/>
-                    {itemCount > 0 && (
-                        <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                            {itemCount}
-                        </span>
-                    )}
-                    <span className="sr-only">View Cart</span>
-                </Link>
-            </Button>
-          )}
-
-          {isLoggedIn && pathname !== '/' ? (
+          {user ? (
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">
@@ -128,7 +115,7 @@ export default function Header() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {userRole === 'client' && (
+                  {!user.isAnonymous && (
                     <>
                         <DropdownMenuItem asChild>
                             <Link href="/profile"><User className="mr-2 h-4 w-4" />Profile</Link>
@@ -138,7 +125,7 @@ export default function Header() {
                         </DropdownMenuItem>
                     </>
                   )}
-                  {userRole === 'staff' && (
+                  {user.isAnonymous && outlets && (
                      <DropdownMenuSub>
                         <DropdownMenuSubTrigger>
                            <Building className="mr-2 h-4 w-4" />
@@ -161,7 +148,6 @@ export default function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
           ) : (
-            isLoggedIn && pathname === '/' ? null :
             <Button asChild variant="default" className='hidden md:inline-flex'>
               <Link href="/auth/login">
                 Login
@@ -185,7 +171,7 @@ export default function Header() {
                   <UtensilsCrossed className="h-6 w-6 text-primary" />
                   <span className="font-headline">DineHub</span>
                 </Link>
-                {isLoggedIn && navLinks.map((link) => (
+                {user && navLinks.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
@@ -194,7 +180,7 @@ export default function Header() {
                     {link.label}
                   </Link>
                 ))}
-                 {!isLoggedIn && <Link
+                 {!user && <Link
                     href={'/auth/login'}
                     className="text-muted-foreground transition-colors hover:text-foreground"
                   >
