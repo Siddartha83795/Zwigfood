@@ -94,7 +94,11 @@ export default function OrderCard({ order, isStaffView = false, onStatusChange }
         if(typeof order.items === 'string') {
             return JSON.parse(order.items);
         }
-        return []; // Should not happen if data is consistent
+        // Handle cases where items might already be an array (e.g. from optimistic updates or older data)
+        if (Array.isArray(order.items)) {
+            return order.items;
+        }
+        return [];
     } catch(e) {
         console.error("Failed to parse order items:", e);
         return [];
