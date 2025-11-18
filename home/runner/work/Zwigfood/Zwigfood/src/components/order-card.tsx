@@ -10,7 +10,7 @@ import { cva } from 'class-variance-authority';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, Timestamp } from 'firebase/firestore';
+import { collection } from 'firebase/firestore';
 import type { Outlet } from '@/lib/types';
 import { useMemo } from 'react';
 
@@ -36,6 +36,10 @@ const statusVariants = cva('capitalize', {
     },
 });
 
+function isTimestamp(value: any): value is { toDate: () => Date } {
+    return value && typeof value.toDate === 'function';
+}
+
 export default function OrderCard({ order, isStaffView = false, onStatusChange }: OrderCardProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -50,17 +54,14 @@ export default function OrderCard({ order, isStaffView = false, onStatusChange }
   
   const createdAtDate = useMemo(() => {
     if (!order.createdAt) return new Date();
-    // Firebase timestamps can be seconds/nanoseconds objects or server-generated Timestamps
-    if (order.createdAt instanceof Timestamp) {
+    
+    if (isTimestamp(order.createdAt)) {
       return order.createdAt.toDate();
-    }
-     if (typeof (order.createdAt as any)?.toDate === 'function') {
-      return (order.createdAt as any).toDate();
     }
     if (typeof order.createdAt === 'string') {
         return new Date(order.createdAt);
     }
-    // Fallback for seconds/nanos structure
+    // Fallback for seconds/nanos structure from older data if any
     const seconds = (order.createdAt as any).seconds || (order.createdAt as any)._seconds;
     if(seconds) {
         return new Date(seconds * 1000);
