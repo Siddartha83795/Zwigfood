@@ -1,3 +1,4 @@
+
 'use client';
 
 import { notFound } from 'next/navigation';
@@ -26,7 +27,6 @@ async function getOrdersByOutlet(firestore: any, outletId: string): Promise<Orde
     const usersCollection = collection(firestore, 'users');
     const usersSnapshot = await getDocs(usersCollection);
     const allOrders: Order[] = [];
-    const batch = writeBatch(firestore);
 
     for (const userDoc of usersSnapshot.docs) {
         const ordersCollection = collection(firestore, `users/${userDoc.id}/orders`);
@@ -38,7 +38,6 @@ async function getOrdersByOutlet(firestore: any, outletId: string): Promise<Orde
         });
     }
 
-    await batch.commit().catch(console.error); // Batch might be empty, that's okay
     return allOrders;
 }
 
@@ -53,8 +52,6 @@ function StaffDashboardPageContent({ outletId }: { outletId: string }) {
 
   const {data: outlet, isLoading: isOutletLoading} = useDoc<Outlet>(outletRef);
   
-  // We can't use a hook here because the query is dynamic across all users.
-  // This is a simplified approach for this app. A real-world app would use a different data model or backend functions.
   const [orders, setOrders] = React.useState<Order[]>([]);
   const [areOrdersLoading, setAreOrdersLoading] = React.useState(true);
 
@@ -65,7 +62,6 @@ function StaffDashboardPageContent({ outletId }: { outletId: string }) {
         .then(setOrders)
         .finally(() => setAreOrdersLoading(false));
 
-      // This is not real-time, but we can poll for simplicity
       const interval = setInterval(() => {
         getOrdersByOutlet(firestore, outletId).then(setOrders);
       }, 15000); // Poll every 15 seconds

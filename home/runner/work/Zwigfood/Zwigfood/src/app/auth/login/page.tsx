@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -187,7 +188,7 @@ export default function LoginPage() {
                     <Label htmlFor="outlet">Select Outlet</Label>
                     <div className="relative">
                         <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Select value={selectedOutlet || outlets?.[0]?.id} onValueChange={setSelectedOutlet}>
+                        <Select value={selectedOutlet} onValueChange={setSelectedOutlet}>
                             <SelectTrigger className="pl-10">
                                 <SelectValue placeholder="Select an outlet" />
                             </SelectTrigger>

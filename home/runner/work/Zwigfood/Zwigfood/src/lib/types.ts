@@ -11,7 +11,7 @@ export type Outlet = {
 };
 
 export type MenuItem = {
-  id: string;
+  id:string;
   outletId: string;
   name: string;
   description: string;

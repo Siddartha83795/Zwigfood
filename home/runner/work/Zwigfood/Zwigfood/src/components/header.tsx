@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -17,8 +18,8 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu, UtensilsCrossed, User, ShoppingCart, LogOut, LayoutDashboard, Building, Sun, Moon } from 'lucide-react';
 import { useCart } from '@/context/cart-context';
 import { useTheme } from "next-themes"
-import { usePathname, useRouter } from 'next/navigation';
-import { useAuth, useCollection, useFirebase, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useRouter } from 'next/navigation';
+import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import type { Outlet } from '@/lib/types';
 import { collection } from 'firebase/firestore';
@@ -29,9 +30,7 @@ const clientNavLinks = [
   { href: '/orders', label: 'My Orders' },
 ];
 
-const staffNavLinks: { href: string; label: string }[] = [
-    // Staff links can be added here if needed in the future
-];
+const staffNavLinks: { href: string; label: string }[] = [];
 
 
 export default function Header() {
