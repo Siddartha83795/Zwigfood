@@ -1,34 +1,25 @@
-# GitHub Actions workflow for Continuous Integration
-# This workflow builds and lints the Next.js app.
+# GitHub Actions workflow for Continuous Integration & Deployment
+# This workflow builds, lints, and deploys the Next.js app to Firebase App Hosting.
 
-name: Zwigfood CI
+name: Zwigfood CI/CD
 
-# Controls when the action will run. 
-# Triggers the workflow on push events but only for the main branch.
 on:
   push:
     branches: [ main ]
 
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    # Sets up Node.js
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
         cache: 'npm'
 
-    # Create .env file from secrets
     - name: Create .env file
       run: |
         echo "GCLOUD_API_KEY=${{ secrets.GCLOUD_API_KEY }}" >> .env
@@ -38,18 +29,32 @@ jobs:
         echo "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}" >> .env
         echo "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}" >> .env
 
-    # Installs dependencies
     - name: Install Dependencies
       run: npm install
 
-    # Runs linting
     - name: Run Lint
       run: npm run lint
-
-    # Runs TypeScript type checking
+      
     - name: Run Type Check
       run: npm run typecheck
 
-    # Runs the build script
     - name: Build Project
       run: npm run build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for authentication with Google Cloud
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Firebase App Hosting
+        uses: firebase/actions/setup-app-hosting@v0
+        with:
+          repo: ${{ github.repository }}
+          project_id: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          service_account: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          
