@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, use } from 'react';
@@ -48,7 +49,7 @@ function MenuPageContent({ outletId }: { outletId: string }) {
   
   const outletImage = PlaceHolderImages.find(img => img.id === outlet.imageId);
 
-  const categories = menuItems ? [...new Set(menuItems.map(item => item.category))] : [];
+  const categories = menuItems ? [...new Set(menuItems.map((item: MenuItem) => item.category))] : [];
 
   return (
     <>
@@ -80,13 +81,13 @@ function MenuPageContent({ outletId }: { outletId: string }) {
                 {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-96 w-full" />)}
             </div>
         ) : (
-            categories.map(category => (
+            categories.map((category: string) => (
             <div key={category} className="mb-12">
                 <h2 className="text-3xl font-bold font-headline mb-6">{category}</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {menuItems && menuItems
-                    .filter(item => item.category === category)
-                    .map(item => (
+                    .filter((item: MenuItem) => item.category === category)
+                    .map((item: MenuItem) => (
                     <MenuItemCard key={item.id} item={item} />
                     ))}
                 </div>
@@ -117,7 +118,7 @@ function MenuPageSkeleton() {
             <div className="container py-12">
                 <Skeleton className="h-10 w-1/4 mb-6" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-96 w-full" />)}
+                    {[...Array(4)].map((_, i: number) => <Skeleton key={i} className="h-96 w-full" />)}
                 </div>
             </div>
         </>

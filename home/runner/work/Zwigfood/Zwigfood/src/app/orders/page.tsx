@@ -1,3 +1,4 @@
+
 'use client';
 
 import OrderCard from '@/components/order-card';
@@ -41,8 +42,8 @@ export default function OrdersPage() {
     )
   }
 
-  const activeOrders = clientOrders?.filter(o => ['pending', 'accepted', 'preparing', 'ready'].includes(o.status)) || [];
-  const pastOrders = clientOrders?.filter(o => ['completed', 'cancelled'].includes(o.status)) || [];
+  const activeOrders = clientOrders?.filter((o: Order) => ['pending', 'accepted', 'preparing', 'ready'].includes(o.status)) || [];
+  const pastOrders = clientOrders?.filter((o: Order) => ['completed', 'cancelled'].includes(o.status)) || [];
 
   if (!clientOrders || clientOrders.length === 0) {
     return (
@@ -77,7 +78,7 @@ export default function OrdersPage() {
         <TabsContent value="active">
             {activeOrders.length > 0 ? (
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                    {activeOrders.map(order => (
+                    {activeOrders.map((order: Order) => (
                         <OrderCard key={order.id} order={order} />
                     ))}
                 </div>
@@ -90,7 +91,7 @@ export default function OrdersPage() {
         <TabsContent value="past">
             {pastOrders.length > 0 ? (
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                    {pastOrders.map(order => (
+                    {pastOrders.map((order: Order) => (
                         <OrderCard key={order.id} order={order} />
                     ))}
                 </div>

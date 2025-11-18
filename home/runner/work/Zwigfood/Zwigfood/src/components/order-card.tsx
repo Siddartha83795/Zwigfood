@@ -136,8 +136,8 @@ export default function OrderCard({ order, isStaffView = false, onStatusChange }
       </CardHeader>
       <CardContent className="flex-grow space-y-2">
          <ul className="text-sm space-y-1">
-            {parsedItems.map((item: any) => (
-                <li key={item.id} className="flex justify-between">
+            {parsedItems.map((item: any, index: number) => (
+                <li key={item.id || index} className="flex justify-between">
                     <span className="truncate pr-2">{item.name} <span className="text-muted-foreground">x{item.quantity}</span></span>
                     <span className="font-mono">₹{(item.priceInr * item.quantity).toFixed(2)}</span>
                 </li>

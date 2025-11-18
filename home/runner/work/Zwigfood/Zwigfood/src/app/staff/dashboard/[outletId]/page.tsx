@@ -88,7 +88,7 @@ function StaffDashboardPageContent({ outletId }: { outletId: string }) {
   };
   
   const getOrdersForColumn = (statuses: OrderStatus[]) => {
-      return orders.filter(o => statuses.includes(o.status)).sort((a,b) => ((a.createdAt as any)?.seconds ?? 0) - ((b.createdAt as any)?.seconds ?? 0));
+      return orders.filter((o: Order) => statuses.includes(o.status)).sort((a,b) => ((a.createdAt as any)?.seconds ?? 0) - ((b.createdAt as any)?.seconds ?? 0));
   }
 
   return (
@@ -109,12 +109,12 @@ function StaffDashboardPageContent({ outletId }: { outletId: string }) {
                                  {areOrdersLoading ? <Skeleton className="h-64 w-full" /> : 
                                  columnOrders.length > 0 ? (
                                     columnOrders
-                                        .map(order => (
+                                        .map((order: Order) => (
                                             <OrderCard 
                                                 key={order.id} 
                                                 order={order} 
                                                 isStaffView={true}
-                                                onStatusChange={(orderId, newStatus) => handleStatusChange(orderId, newStatus, order.clientId)}
+                                                onStatusChange={(orderId: string, newStatus: OrderStatus) => handleStatusChange(orderId, newStatus, order.clientId)}
                                             />
                                         ))
                                     ) : (
