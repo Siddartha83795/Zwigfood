@@ -1,9 +1,32 @@
 'use client';
 
-import { outlets as staticOutlets } from '@/lib/data';
 import OutletCard from '@/components/outlet-card';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
+import type { Outlet } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function OutletsPage() {
+  const { firestore } = useFirebase();
+
+  const outletsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'outlets');
+  }, [firestore]);
+
+  const { data: outlets, isLoading } = useCollection<Outlet>(outletsQuery);
+
+  const renderSkeletons = () => (
+    Array.from({ length: 2 }).map((_, i) => (
+      <div key={i} className="space-y-4">
+        <Skeleton className="h-48 w-full" />
+        <div className="space-y-2 p-4">
+          <Skeleton className="h-6 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+      </div>
+    ))
+  );
 
   return (
     <div className="container py-12">
@@ -16,7 +39,8 @@ export default function OutletsPage() {
         </p>
       </div>
       <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-        {staticOutlets.map((outlet) => (
+        {isLoading && renderSkeletons()}
+        {outlets && outlets.map((outlet) => (
           <OutletCard key={outlet.id} outlet={outlet} />
         ))}
       </div>

@@ -26,7 +26,10 @@
         "role": {
           "type": "string",
           "description": "The role of the user, determining their permissions.",
-          "enum": ["client", "staff"]
+          "enum": [
+            "client",
+            "staff"
+          ]
         }
       },
       "required": [
@@ -35,6 +38,130 @@
         "email",
         "role"
       ]
+    },
+    "Outlet": {
+      "title": "Outlet",
+      "description": "Represents a single food outlet or cafeteria.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "imageId": {
+          "type": "string"
+        },
+        "isActive": {
+          "type": "boolean"
+        }
+      }
+    },
+    "MenuItem": {
+      "title": "Menu Item",
+      "description": "Represents a single item on a menu.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "outletId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "priceInr": {
+          "type": "number"
+        },
+        "imageId": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "isAvailable": {
+          "type": "boolean"
+        },
+        "averagePrepTime": {
+          "type": "number"
+        }
+      }
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Represents a customer's order.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "orderNumber": {
+          "type": "string"
+        },
+        "tokenNumber": {
+          "type": "number"
+        },
+        "outletId": {
+          "type": "string"
+        },
+        "totalAmountInr": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "accepted",
+            "preparing",
+            "ready",
+            "completed",
+            "cancelled"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "client": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "fullName": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string"
+            },
+            "phoneNumber": {
+              "type": "string"
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "quantity": {
+                "type": "number"
+              },
+              "menuItem": {
+                "$ref": "#/entities/MenuItem"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "auth": {
@@ -48,6 +175,24 @@
         "$ref": "#/entities/UserProfile"
       },
       "description": "Stores user profile data. Access is restricted: users can read/write their own profile. Staff can read client profiles."
+    },
+    "/outlets/{outletId}": {
+      "schema": {
+        "$ref": "#/entities/Outlet"
+      },
+      "description": "Public information about each food outlet."
+    },
+    "/menu_items/{menuItemId}": {
+      "schema": {
+        "$ref": "#/entities/MenuItem"
+      },
+      "description": "Public information for each menu item."
+    },
+    "/orders/{orderId}": {
+      "schema": {
+        "$ref": "#/entities/Order"
+      },
+      "description": "Customer orders. Clients can create and read their own. Staff can read and update all."
     }
   }
 }

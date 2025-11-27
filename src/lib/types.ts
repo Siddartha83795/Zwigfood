@@ -41,16 +41,19 @@ export type Order = {
   totalAmountInr: number;
   status: OrderStatus;
   estimatedWaitTime: number;
-  createdAt: string;
-  clientName: string;
-  clientId: string;
+  createdAt: string; // ISO String
+  client: {
+    id: string;
+    fullName: string;
+    email: string;
+    phoneNumber: string;
+  }
 };
 
 export type UserProfile = {
   id: string;
-  name: string;
+  fullName: string;
   email: string;
-  phone: string;
-  address?: string;
-  isProfileComplete?: boolean;
+  phoneNumber: string;
+  role: 'client' | 'staff';
 };

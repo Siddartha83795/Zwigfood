@@ -1,11 +1,22 @@
-import type { Order } from '@/lib/types';
+'use client';
+
+import type { Order, OrderStatus } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Clock, Tag, Hash, Utensils, User } from 'lucide-react';
-import { outlets } from '@/lib/data';
+import { Clock, Tag, Utensils, User, Phone, Mail, ChevronRight, Check } from 'lucide-react';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, doc, updateDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { cva } from 'class-variance-authority';
+import type { Outlet } from '@/lib/types';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Button } from './ui/button';
 
 type OrderCardProps = {
   order: Order;
@@ -28,9 +39,33 @@ const statusVariants = cva('capitalize', {
     },
 });
 
+const nextStatus: Record<OrderStatus, OrderStatus | null> = {
+  pending: 'accepted',
+  accepted: 'preparing',
+  preparing: 'ready',
+  ready: 'completed',
+  completed: null,
+  cancelled: null,
+}
+
 export default function OrderCard({ order, isStaffView = false }: OrderCardProps) {
-  const outlet = outlets.find(o => o.id === order.outletId);
-  const timeAgo = Math.round((new Date().getTime() - new Date(order.createdAt).getTime()) / (1000 * 60));
+  const { firestore } = useFirebase();
+  const outletsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'outlets') : null, [firestore]);
+  const { data: outlets } = useCollection<Outlet>(outletsQuery);
+  const outlet = outlets?.find(o => o.id === order.outletId);
+
+  // Time calculation can be tricky with server vs client time.
+  // We'll use client time for simplicity.
+  const createdAt = new Date(typeof order.createdAt === 'string' ? order.createdAt : order.createdAt.toDate());
+  const timeAgo = Math.round((new Date().getTime() - createdAt.getTime()) / (1000 * 60));
+
+  const handleStatusUpdate = async (newStatus: OrderStatus) => {
+    if (!firestore) return;
+    const orderRef = doc(firestore, 'orders', order.id);
+    await updateDoc(orderRef, { status: newStatus });
+  };
+
+  const nextAction = nextStatus[order.status];
 
   return (
     <Card className="h-full flex flex-col">
@@ -42,7 +77,6 @@ export default function OrderCard({ order, isStaffView = false }: OrderCardProps
                     {order.orderNumber}
                 </CardTitle>
                 <CardDescription className="flex items-center gap-2 mt-1">
-                    <Hash className="h-4 w-4" />
                     Token {order.tokenNumber}
                 </CardDescription>
             </div>
@@ -50,9 +84,11 @@ export default function OrderCard({ order, isStaffView = false }: OrderCardProps
             {order.status}
           </Badge>
         </div>
-        {isStaffView ? (
-           <div className="flex items-center gap-2 pt-2 text-sm text-muted-foreground">
-             <User className="h-4 w-4" /> <span>{order.clientName} ({order.clientId})</span>
+        {isStaffView && order.client ? (
+           <div className="pt-2 text-sm text-muted-foreground space-y-1">
+            <div className='flex items-center gap-2'><User className="h-4 w-4" /> <span>{order.client.fullName}</span></div>
+            <div className='flex items-center gap-2'><Mail className="h-4 w-4" /> <span>{order.client.email}</span></div>
+            <div className='flex items-center gap-2'><Phone className="h-4 w-4" /> <span>{order.client.phoneNumber}</span></div>
            </div>
         ) : outlet && (
             <div className="flex items-center gap-2 pt-2 text-sm text-muted-foreground">
@@ -75,12 +111,31 @@ export default function OrderCard({ order, isStaffView = false }: OrderCardProps
             <span>₹{order.totalAmountInr.toFixed(2)}</span>
         </div>
       </CardContent>
-      <CardFooter className="text-xs text-muted-foreground flex justify-between">
+      <CardFooter className="text-xs text-muted-foreground flex justify-between items-center">
         <div className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
             <span>{timeAgo} mins ago</span>
         </div>
-        {!isStaffView && <p>ETA: ~{order.estimatedWaitTime} mins</p>}
+        {isStaffView && nextAction ? (
+           <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline">
+                  Update Status <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => handleStatusUpdate(nextAction)}>
+                  <Check className="h-4 w-4 mr-2" />
+                  Mark as {nextAction}
+                </DropdownMenuItem>
+                 <DropdownMenuItem className="text-destructive" onClick={() => handleStatusUpdate('cancelled')}>
+                  Cancel Order
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+        ) : !isStaffView && (
+            <p>ETA: ~{order.estimatedWaitTime} mins</p>
+        )}
       </CardFooter>
     </Card>
   );

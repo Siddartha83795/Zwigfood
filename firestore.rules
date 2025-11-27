@@ -35,7 +35,21 @@ service cloud.firestore {
      * Returns true if the document being accessed belongs to a user with the 'client' role.
      */
     function isClient(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.role == 'client';
+      let userDoc = get(/databases/$(database)/documents/users/$(userId));
+      return userDoc.data.role == 'client';
+    }
+    
+    /**
+     * Validates that the incoming data for an order has the correct structure and ownership.
+     */
+    function isValidOrder() {
+      let incomingData = request.resource.data;
+      return isOwner(incomingData.client.id) &&
+             incomingData.outletId is string &&
+             incomingData.totalAmountInr is number &&
+             incomingData.status == 'pending' &&
+             incomingData.createdAt == request.time && // Ensure server timestamp is used
+             incomingData.items is list && incomingData.items.size() > 0;
     }
 
     // --------------------------------------------------------------------
@@ -45,10 +59,9 @@ service cloud.firestore {
     /**
      * @description Stores user profiles.
      * @path /users/{userId}
-     * @allow (get, update) A user can read or update their own profile.
      * @allow (create) Any user can create their own profile document (e.g., during sign-up).
-     * @allow (get) A staff member can read the profile of any client.
-     * @allow (list) A staff member can list all client profiles.
+     * @allow (get, update) A user can read or update their own profile.
+     * @allow (get, list) A staff member can read/list the profiles of any client.
      * @deny (delete) No one can delete a user profile from the client.
      */
     match /users/{userId} {
@@ -57,7 +70,6 @@ service cloud.firestore {
       // Staff can read profiles of users who are clients
       allow get: if isStaff() && isClient(userId); 
       // Staff can list users, which will be filtered on the client-side to show only 'client' roles.
-      // A secure list requires checking the role on each document.
       allow list: if isStaff();
       
       allow delete: if false; // Prevent client-side deletion of user profiles
@@ -68,7 +80,7 @@ service cloud.firestore {
      * @path /outlets/{outletId}
      */
     match /outlets/{outletId} {
-      allow get, list: if true;
+      allow get, list: if isSignedIn();
       allow create, update, delete: if isStaff();
     }
 
@@ -77,17 +89,20 @@ service cloud.firestore {
      * @path /menu_items/{menuItemId}
      */
     match /menu_items/{menuItemId} {
-      allow get, list: if true;
+      allow get, list: if isSignedIn();
       allow create, update, delete: if isStaff();
     }
     
     /**
-     * @description Stores orders. Clients can create and read their own. Staff can read all.
+     * @description Stores orders.
      * @path /orders/{orderId}
+     * @allow (create) A client can create their own order with valid data.
+     * @allow (get, list) A client can read their own orders.
+     * @allow (get, list, update) A staff member can read, list, and update any order.
      */
     match /orders/{orderId} {
-      allow create: if isOwner(request.resource.data.clientId);
-      allow get, list: if isOwner(resource.data.clientId) || isStaff();
+      allow create: if isValidOrder();
+      allow get, list: if isOwner(resource.data.client.id) || isStaff();
       allow update: if isStaff(); // Only staff can update order status
     }
   }
