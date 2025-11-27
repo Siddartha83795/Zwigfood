@@ -1,3 +1,5 @@
+import type { Timestamp } from "firebase/firestore";
+
 export type Outlet = {
   id: string;
   name: string;
@@ -39,8 +41,8 @@ export type Order = {
   items: CartItem[];
   totalAmountInr: number;
   status: OrderStatus;
-  estimatedWaitTime: number;
-  createdAt: string; // ISO String
+  estimatedWaitTime?: number;
+  createdAt: Timestamp | string; // Can be a server timestamp or ISO string
   client: {
     id: string;
     fullName: string;

@@ -102,8 +102,17 @@ service cloud.firestore {
      */
     match /orders/{orderId} {
       allow create: if isValidOrder();
-      allow get, list: if isOwner(resource.data.client.id) || isStaff();
+      allow get, list: if (isOwner(resource.data.client.id) || isStaff());
       allow update: if isStaff(); // Only staff can update order status
     }
+
+    /**
+     * @description Stores counters for generating sequential token numbers per outlet.
+     * @path /counters/{outletId}
+     * @allow (get, update) Authenticated users can read and update counters, typically within a transaction.
+     */
+     match /counters/{outletId} {
+        allow get, update: if isSignedIn();
+     }
   }
 }

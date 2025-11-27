@@ -14,26 +14,90 @@ import { useRouter } from 'next/navigation';
 import { predictWaitTime } from '@/app/actions';
 import type { PredictWaitTimeOutput } from '@/ai/flows/intelligent-wait-time-prediction';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useFirebase, useUser } from '@/firebase';
+import { generateTokenNumber } from '@/lib/firebase-helpers';
+import { collection, serverTimestamp } from 'firebase/firestore';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CartPage() {
-  const { cart, removeFromCart, updateQuantity, cartTotal, itemCount, outletId } = useCart();
+  const { cart, removeFromCart, updateQuantity, cartTotal, itemCount, outletId, clearCart } = useCart();
   const router = useRouter();
+  const { toast } = useToast();
+  const { firestore } = useFirebase();
+  const { user: authUser } = useUser();
   
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [prediction, setPrediction] = useState<PredictWaitTimeOutput | null>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [predictionError, setPredictionError] = useState<string | null>(null);
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
+    if (!firestore || !outletId || !authUser) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Cannot place order. User not logged in or outlet not selected.',
+      });
+      return;
+    }
+    
     setIsPlacingOrder(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsPlacingOrder(false);
-      // For now, generate a random token and ETA
-      const token = Math.floor(Math.random() * 900) + 100;
+
+    try {
+      const tokenNumber = await generateTokenNumber(firestore, outletId);
+      
+      const orderData = {
+        outletId: outletId,
+        items: cart.map(cartItem => ({
+            menuItem: {
+                id: cartItem.menuItem.id,
+                name: cartItem.menuItem.name,
+                priceInr: cartItem.menuItem.priceInr,
+                category: cartItem.menuItem.category,
+                description: cartItem.menuItem.description,
+                imageId: cartItem.menuItem.imageId,
+                isAvailable: cartItem.menuItem.isAvailable,
+                outletId: cartItem.menuItem.outletId,
+                averagePrepTime: cartItem.menuItem.averagePrepTime,
+            },
+            quantity: cartItem.quantity,
+        })),
+        totalAmountInr: cartTotal * 1.05,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        client: {
+          id: authUser.uid,
+          fullName: authUser.displayName || 'N/A',
+          email: authUser.email || 'N/A',
+          phoneNumber: authUser.phoneNumber || 'N/A',
+        },
+        tokenNumber: tokenNumber,
+        orderNumber: `DH-${Date.now()}` // Simple order number
+      };
+
+      const ordersRef = collection(firestore, 'orders');
+      addDocumentNonBlocking(ordersRef, orderData);
+      
+      toast({
+        title: 'Order Placed!',
+        description: `Your token number is ${tokenNumber}.`,
+      });
+
       const eta = prediction?.estimatedWaitTime || Math.floor(15 + Math.random() * 10);
-      router.push(`/order-confirmation?token=${token}&eta=${eta}`);
-    }, 2000);
+      clearCart();
+      router.push(`/order-confirmation?token=${tokenNumber}&eta=${eta}`);
+
+    } catch (error) {
+      console.error("Failed to place order:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Order Failed',
+        description: 'There was an issue placing your order. Please try again.',
+      });
+    } finally {
+      setIsPlacingOrder(false);
+    }
   };
   
   const handlePredictWaitTime = async () => {
@@ -156,9 +220,9 @@ export default function CartPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button size="lg" className="w-full" onClick={handlePlaceOrder} disabled={isPlacingOrder}>
+              <Button size="lg" className="w-full" onClick={handlePlaceOrder} disabled={isPlacingOrder || !authUser}>
                  {isPlacingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Place Order
+                {authUser ? 'Place Order' : 'Login to Place Order'}
               </Button>
             </CardFooter>
           </Card>

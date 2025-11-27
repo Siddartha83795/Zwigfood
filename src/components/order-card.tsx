@@ -1,14 +1,13 @@
 'use client';
 
-import { useState } from 'react';
 import type { Order, OrderStatus } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Clock, Tag, Utensils, User, Phone, Mail, ChevronRight, Check } from 'lucide-react';
+import { Clock, Tag, Utensils, User, Phone, Mail, ChevronRight, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { cva } from 'class-variance-authority';
-import { outlets as mockOutlets } from '@/lib/data';
+import { useCollection, useDoc, useFirebase, useMemoFirebase } from '@/firebase';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +15,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from './ui/button';
+import { doc, Timestamp } from 'firebase/firestore';
+import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { Skeleton } from './ui/skeleton';
 
 type OrderCardProps = {
   order: Order;
@@ -38,31 +40,33 @@ const statusVariants = cva('capitalize', {
     },
 });
 
-const nextStatus: Record<OrderStatus, OrderStatus | null> = {
+const nextStatus: Partial<Record<OrderStatus, OrderStatus>> = {
   pending: 'accepted',
   accepted: 'preparing',
   preparing: 'ready',
   ready: 'completed',
-  completed: null,
-  cancelled: null,
 }
 
 export default function OrderCard({ order, isStaffView = false }: OrderCardProps) {
-  const [currentStatus, setCurrentStatus] = useState<OrderStatus>(order.status);
-  const outlet = mockOutlets.find(o => o.id === order.outletId);
+  const { firestore } = useFirebase();
 
-  // Time calculation can be tricky with server vs client time.
-  // We'll use client time for simplicity.
-  const createdAt = new Date(order.createdAt);
+  const outletRef = useMemoFirebase(() => {
+    if (!firestore || !order.outletId) return null;
+    return doc(firestore, 'outlets', order.outletId);
+  }, [firestore, order.outletId]);
+  const { data: outlet, isLoading: isOutletLoading } = useDoc(outletRef);
+  
+
+  const createdAt = (order.createdAt as unknown as Timestamp)?.toDate() || new Date();
   const timeAgo = Math.round((new Date().getTime() - createdAt.getTime()) / (1000 * 60));
 
   const handleStatusUpdate = (newStatus: OrderStatus) => {
-    // In a real app, you would make an API call here.
-    // For now, we just update the local state.
-    setCurrentStatus(newStatus);
+    if (!firestore) return;
+    const orderRef = doc(firestore, 'orders', order.id);
+    updateDocumentNonBlocking(orderRef, { status: newStatus });
   };
 
-  const nextAction = nextStatus[currentStatus];
+  const nextAction = nextStatus[order.status];
 
   return (
     <Card className="h-full flex flex-col">
@@ -77,8 +81,8 @@ export default function OrderCard({ order, isStaffView = false }: OrderCardProps
                     Token {order.tokenNumber}
                 </CardDescription>
             </div>
-          <Badge variant="outline" className={cn(statusVariants({ status: currentStatus }))}>
-            {currentStatus}
+          <Badge variant="outline" className={cn(statusVariants({ status: order.status }))}>
+            {order.status}
           </Badge>
         </div>
         {isStaffView && order.client ? (
@@ -87,7 +91,9 @@ export default function OrderCard({ order, isStaffView = false }: OrderCardProps
             <div className='flex items-center gap-2'><Mail className="h-4 w-4" /> <span>{order.client.email}</span></div>
             <div className='flex items-center gap-2'><Phone className="h-4 w-4" /> <span>{order.client.phoneNumber}</span></div>
            </div>
-        ) : outlet && (
+        ) : isOutletLoading ? (
+           <Skeleton className="h-5 w-32 mt-2" />
+        ): outlet && (
             <div className="flex items-center gap-2 pt-2 text-sm text-muted-foreground">
                 <Utensils className="h-4 w-4" /> {outlet.name}
             </div>
@@ -95,8 +101,8 @@ export default function OrderCard({ order, isStaffView = false }: OrderCardProps
       </CardHeader>
       <CardContent className="flex-grow space-y-2">
         <ul className="text-sm space-y-1">
-            {order.items.map(item => (
-                <li key={item.menuItem.id} className="flex justify-between">
+            {order.items.map((item, index) => (
+                <li key={`${item.menuItem.id}-${index}`} className="flex justify-between">
                     <span>{item.menuItem.name} <span className="text-muted-foreground">x{item.quantity}</span></span>
                     <span>₹{(item.menuItem.priceInr * item.quantity).toFixed(2)}</span>
                 </li>
@@ -113,7 +119,7 @@ export default function OrderCard({ order, isStaffView = false }: OrderCardProps
             <Clock className="h-3 w-3" />
             <span>{timeAgo} mins ago</span>
         </div>
-        {isStaffView && nextAction ? (
+        {isStaffView && order.status !== 'completed' && order.status !== 'cancelled' ? (
            <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm" variant="outline">
@@ -121,17 +127,20 @@ export default function OrderCard({ order, isStaffView = false }: OrderCardProps
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => handleStatusUpdate(nextAction)}>
-                  <Check className="h-4 w-4 mr-2" />
-                  Mark as {nextAction}
-                </DropdownMenuItem>
-                 <DropdownMenuItem className="text-destructive" onClick={() => handleStatusUpdate('cancelled')}>
+                {nextAction && (
+                    <DropdownMenuItem onClick={() => handleStatusUpdate(nextAction)}>
+                      <Check className="h-4 w-4 mr-2" />
+                      Mark as {nextAction}
+                    </DropdownMenuItem>
+                )}
+                 <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => handleStatusUpdate('cancelled')}>
+                    <X className="h-4 w-4 mr-2" />
                   Cancel Order
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
         ) : !isStaffView && (
-            <p>ETA: ~{order.estimatedWaitTime} mins</p>
+            <p>ETA: ~{order.estimatedWaitTime || 20} mins</p>
         )}
       </CardFooter>
     </Card>

@@ -1,27 +1,54 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import OrderCard from '@/components/order-card';
-import { orders as mockOrders } from '@/lib/data';
-import type { Order } from '@/lib/types';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useFirebase, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import type { Order } from '@/lib/types';
+import { collection, query, where, orderBy } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function OrdersPage() {
-  const [clientOrders, setClientOrders] = useState<Order[]>([]);
+  const { firestore } = useFirebase();
+  const { user: authUser, isUserLoading } = useUser();
 
-  useEffect(() => {
-    // For now, we'll just use all mock orders for any client.
-    // In a real app, you'd fetch this based on the logged-in user.
-    setClientOrders(mockOrders);
-  }, []);
+  const ordersQuery = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return query(
+        collection(firestore, 'orders'),
+        where('client.id', '==', authUser.uid),
+        orderBy('createdAt', 'desc')
+    );
+  }, [firestore, authUser]);
 
-  const activeOrders = clientOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready'].includes(o.status));
-  const pastOrders = clientOrders.filter(o => ['completed', 'cancelled'].includes(o.status));
+  const { data: clientOrders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+  const activeOrders = useMemo(() => clientOrders?.filter(o => ['pending', 'accepted', 'preparing', 'ready'].includes(o.status)) || [], [clientOrders]);
+  const pastOrders = useMemo(() => clientOrders?.filter(o => ['completed', 'cancelled'].includes(o.status)) || [], [clientOrders]);
+
+  const renderSkeletons = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+        {[...Array(3)].map((_, i) => (
+            <div key={i} className="space-y-4 p-4 border rounded-lg">
+                <Skeleton className="h-6 w-1/2" />
+                <Skeleton className="h-4 w-1/4" />
+                <Separator />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Separator />
+                <div className="flex justify-between">
+                    <Skeleton className="h-5 w-1/3" />
+                    <Skeleton className="h-5 w-1/4" />
+                </div>
+            </div>
+        ))}
+    </div>
+  )
 
 
-  if (!clientOrders.length) {
+  if (!isUserLoading && !areOrdersLoading && !clientOrders?.length) {
     return (
        <div className="container py-12 text-center">
         <h1 className="text-3xl font-bold font-headline">You have no orders yet</h1>
@@ -48,11 +75,11 @@ export default function OrdersPage() {
 
        <Tabs defaultValue="active" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="active">Active Orders ({activeOrders.length})</TabsTrigger>
-          <TabsTrigger value="past">Past Orders ({pastOrders.length})</TabsTrigger>
+          <TabsTrigger value="active">Active Orders ({areOrdersLoading ? '...' : activeOrders.length})</TabsTrigger>
+          <TabsTrigger value="past">Past Orders ({areOrdersLoading ? '...' : pastOrders.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="active">
-            {activeOrders.length > 0 ? (
+            {areOrdersLoading ? renderSkeletons() : activeOrders.length > 0 ? (
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
                     {activeOrders.map(order => (
                         <OrderCard key={order.id} order={order} />
@@ -65,7 +92,7 @@ export default function OrdersPage() {
             )}
         </TabsContent>
         <TabsContent value="past">
-            {pastOrders.length > 0 ? (
+             {areOrdersLoading ? renderSkeletons() : pastOrders.length > 0 ? (
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
                     {pastOrders.map(order => (
                         <OrderCard key={order.id} order={order} />
