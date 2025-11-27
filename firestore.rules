@@ -108,7 +108,7 @@ service cloud.firestore {
       allow create: if isValidOrder();
       allow get: if isOwner(resource.data.client.id);
       // Clients can only list their own orders by querying on their UID. Staff can list all orders.
-      allow list: if (request.query.get('where') != null && string(request.query.where).split(" ")[0] == "client.id") || isStaff();
+      allow list: if (request.query.get("client.id") == request.auth.uid) || isStaff();
       allow update: if isStaff(); // Only staff can update order status
     }
 
