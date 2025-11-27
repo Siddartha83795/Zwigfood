@@ -28,9 +28,6 @@ service cloud.firestore {
      * by reading the role from their user profile document.
      */
     function isStaff() {
-      // It's more secure to check for a custom claim if possible, 
-      // but reading from a user's profile is a common pattern.
-      // Make sure that the user's profile write rule is secure.
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
     }
     
