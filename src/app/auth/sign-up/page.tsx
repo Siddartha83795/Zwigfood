@@ -12,9 +12,9 @@ import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Mail, KeyRound, User, Phone } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth, useFirebase, setDocumentNonBlocking } from '@/firebase';
+import { useFirebase } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 
 const signUpSchema = z.object({
   fullName: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -50,23 +50,18 @@ export default function SignUpPage() {
 
         setIsSubmitting(true);
         try {
-            // Create user in Firebase Authentication
             const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
             const user = userCredential.user;
 
-            // Create user profile in Firestore
             const userProfile = {
                 id: user.uid,
                 fullName: data.fullName,
                 email: data.email,
                 phoneNumber: data.phoneNumber,
-                role: 'client' // All sign-ups are clients
+                role: 'client'
             };
 
-            const userDocRef = doc(firestore, 'users', user.uid);
-            
-            // Use non-blocking write for better UX
-            setDocumentNonBlocking(userDocRef, userProfile, { merge: true });
+            await setDoc(doc(firestore, 'users', user.uid), userProfile);
             
             toast({
                 title: "Registration Successful",

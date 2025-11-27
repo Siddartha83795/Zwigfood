@@ -14,7 +14,9 @@ import { Mail, KeyRound } from 'lucide-react';
 import Link from 'next/link';
 import { useFirebase } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+
+const DEMO_STAFF_EMAIL = 'staff@example.com';
+const DEMO_STAFF_PASSWORD = 'password';
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -22,11 +24,11 @@ const loginSchema = z.object({
 });
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+export default function StaffLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { auth, firestore } = useFirebase();
+    const { auth } = useFirebase();
 
     const form = useForm<LoginFormValues>({
         resolver: zodResolver(loginSchema),
@@ -37,51 +39,43 @@ export default function LoginPage() {
         },
     });
 
-    const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
-        if (!auth || !firestore) {
+    const handleLogin = async (data: LoginFormValues) => {
+        if (!auth) {
             toast({ variant: 'destructive', title: 'Firebase not initialized.'});
             return;
         }
-
         setIsSubmitting(true);
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-            const user = userCredential.user;
-
-            const userDocRef = doc(firestore, 'users', user.uid);
-            const userDoc = await getDoc(userDocRef);
-
-            if (userDoc.exists()) {
-                const userData = userDoc.data();
-                toast({
-                    title: "Login Successful",
-                    description: `Welcome back, ${userData.fullName}!`,
-                });
-                 router.push('/outlets');
-            } else {
-                 throw new Error("User profile not found.");
-            }
+            await signInWithEmailAndPassword(auth, data.email, data.password);
+            toast({ title: "Staff Login Successful" });
+            router.push('/outlets');
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: "Login Failed",
-                description: "Login failed. If you don't have an account please register.",
+                title: "Staff Login Failed",
+                description: error.message || "Invalid credentials.",
             });
         } finally {
             setIsSubmitting(false);
         }
     };
+    
+    const useDemo = async () => {
+        form.setValue('email', DEMO_STAFF_EMAIL);
+        form.setValue('password', DEMO_STAFF_PASSWORD);
+        await handleLogin({ email: DEMO_STAFF_EMAIL, password: DEMO_STAFF_PASSWORD });
+    }
 
   return (
     <div className="container flex min-h-[calc(100vh-8rem)] items-center justify-center py-12">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="font-headline text-3xl">Client Login</CardTitle>
-          <CardDescription>Enter your credentials to access your account.</CardDescription>
+          <CardTitle className="font-headline text-3xl">Staff Login</CardTitle>
+          <CardDescription>Login with your staff credentials or use the demo account.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(handleLogin)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="email"
@@ -91,7 +85,7 @@ export default function LoginPage() {
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <FormControl>
-                        <Input type="email" placeholder="you@example.com" {...field} className="pl-10" />
+                        <Input type="email" placeholder="staff@example.com" {...field} className="pl-10" />
                       </FormControl>
                     </div>
                     <FormMessage />
@@ -119,15 +113,18 @@ export default function LoginPage() {
               </Button>
             </form>
           </Form>
-           <div className="mt-4 text-center text-sm">
-              New here?{' '}
-              <Link href="/auth/sign-up" className="underline">
-                Create an account
-              </Link>
+           <div className="mt-4 border-t pt-4">
+                <p className="text-sm text-center text-muted-foreground">Want to try the app as staff quickly?</p>
+                <Button onClick={useDemo} className="mt-2 w-full bg-accent hover:bg-accent/90" disabled={isSubmitting}>
+                    Use Demo Staff Account
+                </Button>
+                <p className="mt-2 text-xs text-muted-foreground text-center">(Demo: {DEMO_STAFF_EMAIL} / {DEMO_STAFF_PASSWORD})</p>
             </div>
-             <div className="mt-4 text-center text-sm text-muted-foreground">
-                <p>Note: Staff have a separate demo login on the Staff login page.</p>
-                <Link href="/staff/login" className="underline text-primary">Staff Login</Link>
+            <div className="mt-4 text-center text-sm">
+              Not a staff member?{' '}
+              <Link href="/auth/login" className="underline">
+                Go to Client Login
+              </Link>
             </div>
         </CardContent>
       </Card>
