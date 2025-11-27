@@ -4,7 +4,6 @@ export type Outlet = {
   description: string;
   imageId: string;
   isActive: boolean;
-  baseDeliveryTime: number;
 };
 
 export type MenuItem = {

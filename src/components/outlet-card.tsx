@@ -1,8 +1,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Outlet } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useEffect, useState } from 'react';
 
 type OutletCardProps = {
   outlet: Outlet;
@@ -10,9 +11,16 @@ type OutletCardProps = {
 
 export default function OutletCard({ outlet }: OutletCardProps) {
   const image = PlaceHolderImages.find((img) => img.id === outlet.imageId);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUserRole(localStorage.getItem('userRole'));
+  }, []);
+
+  const href = userRole === 'staff' ? `/staff/dashboard/${outlet.id}` : `/menu/${outlet.id}`;
 
   return (
-    <Link href={`/menu/${outlet.id}`} className="group block">
+    <Link href={href} className="group block">
       <Card className="h-full overflow-hidden transition-all duration-300 group-hover:border-primary group-hover:shadow-lg">
         <div className="relative h-48 w-full">
           {image && (
@@ -35,9 +43,6 @@ export default function OutletCard({ outlet }: OutletCardProps) {
           <CardTitle className="font-headline">{outlet.name}</CardTitle>
           <CardDescription>{outlet.description}</CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Est. Delivery: {outlet.baseDeliveryTime} mins</p>
-        </CardContent>
       </Card>
     </Link>
   );

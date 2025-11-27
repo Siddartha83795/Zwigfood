@@ -55,7 +55,7 @@ export default function LoginPage() {
                     title: "Staff Login Successful",
                     description: `Welcome, ${mockStaffProfile.fullName}!`,
                 });
-                router.push('/staff/dashboard');
+                router.push('/outlets');
             } else {
                 toast({
                     variant: 'destructive',

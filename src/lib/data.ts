@@ -2,20 +2,18 @@ import type { Outlet, MenuItem, Order, UserProfile } from './types';
 
 export const outlets: Outlet[] = [
   {
-    id: 'outlet-1',
+    id: 'medical_cafetaria',
     name: 'Medical Cafeteria',
     description: 'Serving healthy and delicious meals for everyone.',
     imageId: 'outlet-medical-cafeteria',
     isActive: true,
-    baseDeliveryTime: 15,
   },
   {
-    id: 'outlet-2',
+    id: 'bits_and_bites',
     name: 'Bits & Bites',
     description: 'Quick snacks, sandwiches, and refreshing beverages.',
     imageId: 'outlet-bits-bites',
     isActive: true,
-    baseDeliveryTime: 10,
   },
 ];
 
@@ -23,7 +21,7 @@ export const menuItems: MenuItem[] = [
   // Medical Cafeteria
   {
     id: 'item-1',
-    outletId: 'outlet-1',
+    outletId: 'medical_cafetaria',
     name: 'Chole Bhature',
     description: 'Spicy chickpeas curry served with fluffy deep-fried bread.',
     priceInr: 120,
@@ -34,7 +32,7 @@ export const menuItems: MenuItem[] = [
   },
   {
     id: 'item-2',
-    outletId: 'outlet-1',
+    outletId: 'medical_cafetaria',
     name: 'Masala Dosa',
     description: 'A thin pancake of rice batter, filled with spiced potatoes.',
     priceInr: 100,
@@ -45,7 +43,7 @@ export const menuItems: MenuItem[] = [
   },
   {
     id: 'item-3',
-    outletId: 'outlet-1',
+    outletId: 'medical_cafetaria',
     name: 'Paneer Tikka',
     description: 'Cubes of paneer marinated in spices and grilled in a tandoor.',
     priceInr: 150,
@@ -56,7 +54,7 @@ export const menuItems: MenuItem[] = [
   },
   {
     id: 'item-4',
-    outletId: 'outlet-1',
+    outletId: 'medical_cafetaria',
     name: 'Vegetable Biryani',
     description: 'Aromatic rice dish with mixed vegetables and spices.',
     priceInr: 180,
@@ -67,7 +65,7 @@ export const menuItems: MenuItem[] = [
   },
     {
     id: 'item-5',
-    outletId: 'outlet-1',
+    outletId: 'medical_cafetaria',
     name: 'Samosa',
     description: 'Fried pastry with a savory filling of spiced potatoes and peas.',
     priceInr: 30,
@@ -78,7 +76,7 @@ export const menuItems: MenuItem[] = [
   },
   {
     id: 'item-6',
-    outletId: 'outlet-1',
+    outletId: 'medical_cafetaria',
     name: 'Filter Coffee',
     description: 'South Indian style drip coffee.',
     priceInr: 40,
@@ -89,7 +87,7 @@ export const menuItems: MenuItem[] = [
   },
     {
     id: 'item-7',
-    outletId: 'outlet-1',
+    outletId: 'medical_cafetaria',
     name: 'Fresh Lime Soda',
     description: 'A refreshing drink with lime juice and soda.',
     priceInr: 50,
@@ -102,7 +100,7 @@ export const menuItems: MenuItem[] = [
   // Bits & Bites
   {
     id: 'item-8',
-    outletId: 'outlet-2',
+    outletId: 'bits_and_bites',
     name: 'Club Sandwich',
     description: 'Triple-layered sandwich with veg fillings, served with fries.',
     priceInr: 160,
@@ -113,7 +111,7 @@ export const menuItems: MenuItem[] = [
   },
   {
     id: 'item-9',
-    outletId: 'outlet-2',
+    outletId: 'bits_and_bites',
     name: 'Veg Hakka Noodles',
     description: 'Stir-fried noodles with a variety of vegetables.',
     priceInr: 140,
@@ -124,7 +122,7 @@ export const menuItems: MenuItem[] = [
   },
   {
     id: 'item-10',
-    outletId: 'outlet-2',
+    outletId: 'bits_and_bites',
     name: 'Chilli Paneer',
     description: 'Spicy and tangy indo-chinese dish with paneer and bell peppers.',
     priceInr: 180,
@@ -135,7 +133,7 @@ export const menuItems: MenuItem[] = [
   },
   {
     id: 'item-11',
-    outletId: 'outlet-2',
+    outletId: 'bits_and_bites',
     name: 'Coca-Cola',
     description: 'A can of chilled Coca-Cola.',
     priceInr: 40,
@@ -151,10 +149,10 @@ export const orders: Order[] = [
     id: 'order-1',
     orderNumber: 'DH-001',
     tokenNumber: 1,
-    outletId: 'outlet-1',
+    outletId: 'medical_cafetaria',
     items: [
-      { menuItem: menuItems[0], quantity: 1 },
-      { menuItem: menuItems[1], quantity: 2 },
+      { menuItem: menuItems.find(mi => mi.id === 'item-1')!, quantity: 1 },
+      { menuItem: menuItems.find(mi => mi.id === 'item-2')!, quantity: 2 },
     ],
     totalAmountInr: 320,
     status: 'pending',
@@ -171,8 +169,8 @@ export const orders: Order[] = [
     id: 'order-2',
     orderNumber: 'DH-002',
     tokenNumber: 2,
-    outletId: 'outlet-1',
-    items: [{ menuItem: menuItems[2], quantity: 1 }],
+    outletId: 'medical_cafetaria',
+    items: [{ menuItem: menuItems.find(mi => mi.id === 'item-3')!, quantity: 1 }],
     totalAmountInr: 150,
     status: 'preparing',
     createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
@@ -188,8 +186,8 @@ export const orders: Order[] = [
     id: 'order-3',
     orderNumber: 'DH-003',
     tokenNumber: 3,
-    outletId: 'outlet-2',
-    items: [{ menuItem: menuItems[7], quantity: 3 }],
+    outletId: 'bits_and_bites',
+    items: [{ menuItem: menuItems.find(mi => mi.id === 'item-8')!, quantity: 3 }],
     totalAmountInr: 480,
     status: 'ready',
     createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
@@ -205,10 +203,10 @@ export const orders: Order[] = [
     id: 'order-4',
     orderNumber: 'DH-004',
     tokenNumber: 4,
-    outletId: 'outlet-1',
+    outletId: 'medical_cafetaria',
     items: [
-      { menuItem: menuItems[3], quantity: 1 },
-      { menuItem: menuItems[4], quantity: 2 },
+      { menuItem: menuItems.find(mi => mi.id === 'item-4')!, quantity: 1 },
+      { menuItem: menuItems.find(mi => mi.id === 'item-5')!, quantity: 2 },
     ],
     totalAmountInr: 240,
     status: 'completed',
