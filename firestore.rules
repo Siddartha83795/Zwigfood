@@ -44,14 +44,15 @@ service cloud.firestore {
      */
     function isValidOrder() {
       let incomingData = request.resource.data;
-      // Note: We don't check `createdAt` here because we expect `serverTimestamp()` to be used.
+      // We check that the `createdAt` field is a server timestamp on write.
       // The `isOwner` check verifies that the client ID on the order matches the logged-in user.
       return isSignedIn() &&
              isOwner(incomingData.client.id) &&
              incomingData.outletId is string &&
              incomingData.totalAmountInr is number &&
              incomingData.status == 'pending' &&
-             incomingData.items is list && incomingData.items.size() > 0;
+             incomingData.items is list && incomingData.items.size() > 0 &&
+             incomingData.createdAt == request.time;
     }
 
     // --------------------------------------------------------------------
@@ -99,12 +100,15 @@ service cloud.firestore {
      * @description Stores orders.
      * @path /orders/{orderId}
      * @allow (create) A client can create their own order with valid data.
-     * @allow (get, list) A client can read their own orders.
+     * @allow (get) A client can read their own orders.
+     * @allow (list) A client can list ONLY their own orders.
      * @allow (get, list, update) A staff member can read, list, and update any order.
      */
     match /orders/{orderId} {
       allow create: if isValidOrder();
-      allow get, list: if (isOwner(resource.data.client.id) || isStaff());
+      allow get: if isOwner(resource.data.client.id);
+      // Clients can only list their own orders. Staff can list all orders for their dashboard.
+      allow list: if (request.query.where.size() > 0 && request.query.where[0][0] == 'client.id' && request.query.where[0][2] == request.auth.uid) || isStaff();
       allow update: if isStaff(); // Only staff can update order status
     }
 
