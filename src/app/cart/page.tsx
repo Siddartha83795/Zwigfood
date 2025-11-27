@@ -14,11 +14,12 @@ import { useRouter } from 'next/navigation';
 import { predictWaitTime } from '@/app/actions';
 import type { PredictWaitTimeOutput } from '@/ai/flows/intelligent-wait-time-prediction';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useFirebase, useUser } from '@/firebase';
+import { useFirebase, useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { generateTokenNumber } from '@/lib/firebase-helpers';
-import { collection, serverTimestamp } from 'firebase/firestore';
+import { collection, serverTimestamp, doc } from 'firebase/firestore';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
+import type { UserProfile } from '@/lib/types';
 
 export default function CartPage() {
   const { cart, removeFromCart, updateQuantity, cartTotal, itemCount, outletId, clearCart } = useCart();
@@ -27,13 +28,20 @@ export default function CartPage() {
   const { firestore } = useFirebase();
   const { user: authUser } = useUser();
   
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return doc(firestore, 'users', authUser.uid);
+  }, [firestore, authUser]);
+  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
+
+
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [prediction, setPrediction] = useState<PredictWaitTimeOutput | null>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [predictionError, setPredictionError] = useState<string | null>(null);
 
   const handlePlaceOrder = async () => {
-    if (!firestore || !outletId || !authUser) {
+    if (!firestore || !outletId || !authUser || !userProfile) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -48,32 +56,32 @@ export default function CartPage() {
       const tokenNumber = await generateTokenNumber(firestore, outletId);
       
       const orderData = {
+        orderNumber: `DH-${Date.now()}`,
+        tokenNumber: tokenNumber,
         outletId: outletId,
-        items: cart.map(cartItem => ({
-            menuItem: {
-                id: cartItem.menuItem.id,
-                name: cartItem.menuItem.name,
-                priceInr: cartItem.menuItem.priceInr,
-                category: cartItem.menuItem.category,
-                description: cartItem.menuItem.description,
-                imageId: cartItem.menuItem.imageId,
-                isAvailable: cartItem.menuItem.isAvailable,
-                outletId: cartItem.menuItem.outletId,
-                averagePrepTime: cartItem.menuItem.averagePrepTime,
-            },
-            quantity: cartItem.quantity,
-        })),
         totalAmountInr: cartTotal * 1.05,
         status: 'pending',
         createdAt: serverTimestamp(),
         client: {
           id: authUser.uid,
-          fullName: authUser.displayName || 'N/A',
-          email: authUser.email || 'N/A',
-          phoneNumber: authUser.phoneNumber || 'N/A',
+          fullName: userProfile.fullName,
+          email: userProfile.email,
+          phoneNumber: userProfile.phoneNumber,
         },
-        tokenNumber: tokenNumber,
-        orderNumber: `DH-${Date.now()}` // Simple order number
+        items: cart.map(cartItem => ({
+            quantity: cartItem.quantity,
+            menuItem: {
+                id: cartItem.menuItem.id,
+                outletId: cartItem.menuItem.outletId,
+                name: cartItem.menuItem.name,
+                description: cartItem.menuItem.description,
+                priceInr: cartItem.menuItem.priceInr,
+                imageId: cartItem.menuItem.imageId,
+                category: cartItem.menuItem.category,
+                isAvailable: cartItem.menuItem.isAvailable,
+                averagePrepTime: cartItem.menuItem.averagePrepTime,
+            },
+        })),
       };
 
       const ordersRef = collection(firestore, 'orders');

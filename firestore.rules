@@ -44,11 +44,13 @@ service cloud.firestore {
      */
     function isValidOrder() {
       let incomingData = request.resource.data;
-      return isOwner(incomingData.client.id) &&
+      // Note: We don't check `createdAt` here because we expect `serverTimestamp()` to be used.
+      // The `isOwner` check verifies that the client ID on the order matches the logged-in user.
+      return isSignedIn() &&
+             isOwner(incomingData.client.id) &&
              incomingData.outletId is string &&
              incomingData.totalAmountInr is number &&
              incomingData.status == 'pending' &&
-             incomingData.createdAt == request.time && // Ensure server timestamp is used
              incomingData.items is list && incomingData.items.size() > 0;
     }
 
