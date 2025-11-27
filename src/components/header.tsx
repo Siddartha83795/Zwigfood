@@ -16,7 +16,7 @@ import { useCart } from '@/context/cart-context';
 import { ThemeToggle } from './theme-toggle';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useAuth, useDoc, useFirebase, useUser, useMemoFirebase } from '@/firebase';
+import { useFirebase, useUser, useMemoFirebase, useDoc } from '@/firebase';
 import type { UserProfile } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 
@@ -31,6 +31,12 @@ export default function Header() {
   const { auth, firestore } = useFirebase();
   const { user: authUser, isUserLoading } = useUser();
   const pathname = usePathname();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
 
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -76,7 +82,7 @@ export default function Header() {
         )}
         <div className="flex flex-1 items-center justify-end gap-2">
            <ThemeToggle />
-           {isLoggedIn && userRole === 'client' && (
+           {isClient && isLoggedIn && userRole === 'client' && (
             <Button asChild variant="ghost" size="icon" className="relative">
                 <Link href="/cart">
                     <ShoppingCart className="h-5 w-5"/>
