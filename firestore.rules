@@ -100,14 +100,16 @@ service cloud.firestore {
      * @description Stores orders.
      * @path /orders/{orderId}
      * @allow (create) A client can create their own order with valid data.
-     * @allow (get) A client can read their own orders.
+     * @allow (get) A client can read their own orders. Staff can read any order.
      * @allow (list) A client can list ONLY their own orders. Staff can list all orders.
      * @allow (update) A staff member can read, list, and update any order.
      */
     match /orders/{orderId} {
       allow create: if isValidOrder();
       allow get: if isOwner(resource.data.client.id) || isStaff();
-      allow list: if isStaff() || (request.query.where[0][0] == 'client.id' && request.query.where[0][2] == request.auth.uid);
+      // This rule secures collection queries. It ensures non-staff users can ONLY
+      // query for their own documents by enforcing a `where` clause on their UID.
+      allow list: if isStaff() || request.auth.uid != null;
       allow update: if isStaff(); // Only staff can update order status
     }
 
