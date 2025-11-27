@@ -101,14 +101,14 @@ service cloud.firestore {
      * @path /orders/{orderId}
      * @allow (create) A client can create their own order with valid data.
      * @allow (get) A client can read their own orders.
-     * @allow (list) A client can list ONLY their own orders.
-     * @allow (get, list, update) A staff member can read, list, and update any order.
+     * @allow (list) A client can list ONLY their own orders. Staff can list all orders.
+     * @allow (update) A staff member can read, list, and update any order.
      */
     match /orders/{orderId} {
       allow create: if isValidOrder();
       allow get: if isOwner(resource.data.client.id);
       // Clients can only list their own orders by querying on their UID. Staff can list all orders.
-      allow list: if (request.query.get("client.id") == request.auth.uid) || isStaff();
+      allow list: if (request.query.where.get("client.id")[2] == request.auth.uid) || isStaff();
       allow update: if isStaff(); // Only staff can update order status
     }
 
