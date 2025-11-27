@@ -24,17 +24,19 @@ service cloud.firestore {
     }
     
     /**
-     * Checks if the currently authenticated user has the 'staff' role.
-     * It reads the user's own profile from the /users collection to check their role.
+     * Checks if the currently authenticated user has the 'staff' role
+     * by reading the role from their custom claims.
      */
     function isStaff() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
+      return isSignedIn() && request.auth.token.role == 'staff';
     }
 
     /**
      * Returns true if the document being accessed belongs to a user with the 'client' role.
      */
     function isClient(userId) {
+      // Note: This relies on reading another document, which has cost implications.
+      // Using custom claims (like for isStaff) is often more efficient.
       let userDoc = get(/databases/$(database)/documents/users/$(userId));
       return userDoc.data.role == 'client';
     }
@@ -60,20 +62,12 @@ service cloud.firestore {
     /**
      * @description Stores user profiles.
      * @path /users/{userId}
-     * @allow (create) Any user can create their own profile document (e.g., during sign-up).
-     * @allow (get, update) A user can read or update their own profile.
-     * @allow (get, list) A staff member can read/list the profiles of any client.
-     * @deny (delete) No one can delete a user profile from the client.
      */
     match /users/{userId} {
       allow create: if isOwner(userId);
       allow get, update: if isOwner(userId);
-      // Staff can read profiles of users who are clients
-      allow get: if isStaff() && isClient(userId); 
-      // Staff can list users, which will be filtered on the client-side to show only 'client' roles.
       allow list: if isStaff();
-      
-      allow delete: if false; // Prevent client-side deletion of user profiles
+      allow delete: if false; 
     }
 
     /**
@@ -97,23 +91,24 @@ service cloud.firestore {
     /**
      * @description Stores orders.
      * @path /orders/{orderId}
-     * @allow (create) A client can create their own order with valid data.
-     * @allow (get) A client can read their own orders. Staff can read any order.
-     * @allow (list) A client can list ONLY their own orders. Staff can list all orders.
-     * @allow (update) A staff member can read, list, and update any order.
      */
     match /orders/{orderId} {
+      // Any authenticated user can create an order.
       allow create: if isValidOrder();
+
+      // Clients can read their own orders. Staff can read all orders.
       allow get: if isOwner(resource.data.client.id) || isStaff();
-      // Ensures clients can only query for their own orders.
-      allow list: if isStaff() || (request.query.where[0][0] == 'client.id' && request.query.where[0][2] == request.auth.uid && request.query.limit <= 100);
-      allow update: if isStaff(); // Only staff can update order status
+      
+      // Clients can only list their own orders. Staff can list all orders.
+      allow list: if isStaff() || (request.query.where[0][0] == 'client.id' && request.query.where[0][2] == request.auth.uid);
+      
+      // Only staff can update order status.
+      allow update: if isStaff(); 
     }
 
     /**
      * @description Stores counters for generating sequential token numbers per outlet.
      * @path /counters/{outletId}
-     * @allow (get, update) Authenticated users can read and update counters, typically within a transaction.
      */
      match /counters/{outletId} {
         allow get, update: if isSignedIn();

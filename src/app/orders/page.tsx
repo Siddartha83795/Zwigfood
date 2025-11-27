@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useFirebase, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import type { Order } from '@/lib/types';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 
@@ -19,8 +19,7 @@ export default function OrdersPage() {
     if (!firestore || !authUser) return null;
     return query(
         collection(firestore, 'orders'),
-        where('client.id', '==', authUser.uid),
-        orderBy('createdAt', 'desc')
+        where('client.id', '==', authUser.uid)
     );
   }, [firestore, authUser]);
 
@@ -28,10 +27,9 @@ export default function OrdersPage() {
 
   const sortedOrders = useMemo(() => {
     if (!clientOrders) return [];
-    // The query now handles sorting, but we can keep this for safety/consistency if needed.
     return [...clientOrders].sort((a, b) => {
-        const timeA = (a.createdAt as any)?.toDate?.() || new Date(a.createdAt as string);
-        const timeB = (b.createdAt as any)?.toDate?.() || new Date(b.createdAt as string);
+        const timeA = (a.createdAt as Timestamp)?.toDate?.() || new Date(0);
+        const timeB = (b.createdAt as Timestamp)?.toDate?.() || new Date(0);
         return timeB.getTime() - timeA.getTime();
     });
   }, [clientOrders]);
