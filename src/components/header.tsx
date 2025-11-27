@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -16,8 +15,11 @@ import { Menu, UtensilsCrossed, User, ShoppingCart, LogOut, LayoutDashboard } fr
 import { useCart } from '@/context/cart-context';
 import { ThemeToggle } from './theme-toggle';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
-
+import { useUser, useFirebase } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
+import { doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 
 const navLinks = [
   { href: '/outlets', label: 'Outlets' },
@@ -26,28 +28,46 @@ const navLinks = [
 
 export default function Header() {
   const { itemCount } = useCart();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const { user, isUserLoading } = useUser();
+  const { auth, firestore } = useFirebase();
+  const [userProfile, setUserProfile] = useState<{ fullName?: string; role?: string } | null>(null);
+
   const pathname = usePathname();
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-        const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
-        setIsLoggedIn(loggedIn);
-        setUserRole(localStorage.getItem('userRole'));
+    if (user) {
+      const userDocRef = doc(firestore, 'users', user.uid);
+      getDoc(userDocRef).then(docSnap => {
+        if (docSnap.exists()) {
+          setUserProfile(docSnap.data() as { fullName: string; role: string });
+        }
+      });
+    } else {
+      setUserProfile(null);
     }
-  }, [pathname]); // Rerun on route change
+  }, [user, firestore]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userRole');
-    setIsLoggedIn(false);
-    setUserRole(null);
-    router.push('/auth/login');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
+      });
+      router.push('/auth/login');
+    } catch (error) {
+      console.error("Logout failed:", error);
+      toast({
+        variant: 'destructive',
+        title: "Logout Failed",
+        description: "An error occurred while logging out.",
+      });
+    }
   };
   
-  const showNavLinks = isLoggedIn && userRole === 'client' && pathname !== '/';
+  const showNavLinks = user && userProfile?.role === 'client' && pathname !== '/';
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -73,30 +93,32 @@ export default function Header() {
         )}
         <div className="flex flex-1 items-center justify-end gap-2">
            <ThemeToggle />
-          <Button asChild variant="ghost" size="icon" className="relative">
-              <Link href="/cart">
-                  <ShoppingCart className="h-5 w-5"/>
-                  {itemCount > 0 && (
-                      <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground -translate-y-1/2 translate-x-1/2">
-                          {itemCount}
-                      </span>
-                  )}
-                  <span className="sr-only">View Cart</span>
-              </Link>
-          </Button>
+           {userProfile?.role === 'client' && (
+            <Button asChild variant="ghost" size="icon" className="relative">
+                <Link href="/cart">
+                    <ShoppingCart className="h-5 w-5"/>
+                    {itemCount > 0 && (
+                        <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground -translate-y-1/2 translate-x-1/2">
+                            {itemCount}
+                        </span>
+                    )}
+                    <span className="sr-only">View Cart</span>
+                </Link>
+            </Button>
+           )}
 
-          {isLoggedIn ? (
+          {!isUserLoading && user ? (
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <User className="h-5 w-5"/>
-                    <span className="sr-only">Profile</span>
+                  <Button variant="ghost">
+                    <User className="h-5 w-5 mr-2"/>
+                    <span>Welcome, {userProfile?.fullName?.split(' ')[0] || ''}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {userRole === 'client' && (
+                  {userProfile?.role === 'client' && (
                     <>
                       <DropdownMenuItem asChild>
                         <Link href="/profile"><User className="mr-2 h-4 w-4" />Profile</Link>
@@ -104,16 +126,21 @@ export default function Header() {
                       <DropdownMenuItem asChild>
                         <Link href="/orders"><LayoutDashboard className="mr-2 h-4 w-4" />My Orders</Link>
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
                     </>
                   )}
+                   {userProfile?.role === 'staff' && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/staff/dashboard"><LayoutDashboard className="mr-2 h-4 w-4" />Dashboard</Link>
+                    </DropdownMenuItem>
+                   )}
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-          ) : (
+          ) : !isUserLoading && (
             pathname !== '/' && (
               <Button asChild variant="default" className='hidden md:inline-flex'>
                 <Link href="/auth/login">
@@ -148,7 +175,7 @@ export default function Header() {
                     {link.label}
                   </Link>
                 ))}
-                 {!isLoggedIn && (
+                 {!user && !isUserLoading && (
                    <Link
                       href={'/auth/login'}
                       className="text-muted-foreground transition-colors hover:text-foreground"

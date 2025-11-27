@@ -1,8 +1,12 @@
-import { notFound } from 'next/navigation';
+'use client';
+
+import { notFound, useRouter } from 'next/navigation';
 import { outlets, orders as mockOrders } from '@/lib/data';
 import OrderCard from '@/components/order-card';
 import type { OrderStatus } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useUser } from '@/firebase';
+import { useEffect } from 'react';
 
 type StatusColumn = {
     title: string;
@@ -17,6 +21,14 @@ const columns: StatusColumn[] = [
 
 export default function StaffDashboardPage({ params }: { params: { outletId: string } }) {
   const outlet = outlets.find(o => o.id === params.outletId);
+  const router = useRouter();
+  const { user, isUserLoading } = useUser();
+  
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace('/auth/login');
+    }
+  }, [user, isUserLoading, router]);
 
   if (!outlet) {
     notFound();

@@ -1,24 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { outlets } from '@/lib/data';
+import { outlets as staticOutlets } from '@/lib/data';
 import OutletCard from '@/components/outlet-card';
 
 export default function OutletsPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // This function will be called when the component unmounts (i.e., when the user navigates away)
-    return () => {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('isLoggedIn');
-        // You can optionally redirect them to the login page upon logout
-        // router.push('/auth/login');
-        console.log('User logged out upon leaving outlets page.');
-      }
-    };
-  }, [router]);
 
   return (
     <div className="container py-12">
@@ -31,7 +16,7 @@ export default function OutletsPage() {
         </p>
       </div>
       <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-        {outlets.map((outlet) => (
+        {staticOutlets.map((outlet) => (
           <OutletCard key={outlet.id} outlet={outlet} />
         ))}
       </div>

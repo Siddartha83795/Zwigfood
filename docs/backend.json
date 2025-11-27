@@ -1,139 +1,53 @@
 {
   "entities": {
-    "Client": {
+    "UserProfile": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Client",
+      "title": "User Profile",
       "type": "object",
-      "description": "Represents a customer using the DineHub application.",
+      "description": "Represents a user of the DineHub application, who can be a customer or a staff member.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the client."
+          "description": "Unique identifier for the user, matching the Firebase Auth UID."
         },
         "fullName": {
           "type": "string",
-          "description": "The full name of the client."
+          "description": "The full name of the user."
         },
         "phoneNumber": {
           "type": "string",
-          "description": "The phone number of the client."
+          "description": "The phone number of the user."
         },
         "email": {
           "type": "string",
-          "description": "The email address of the client.",
+          "description": "The email address of the user.",
           "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user, determining their permissions.",
+          "enum": ["client", "staff"]
         }
       },
       "required": [
         "id",
         "fullName",
-        "phoneNumber",
-        "email"
-      ]
-    },
-    "Staff": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Staff",
-      "type": "object",
-      "description": "Represents a staff member who can manage the DineHub application.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the staff member."
-        },
-        "employeeId": {
-          "type": "string",
-          "description": "The employee ID of the staff member."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the staff member."
-        },
-        "outletId": {
-          "type": "string",
-          "description": "Reference to Outlet. (Relationship: Outlet 1:N Staff)"
-        }
-      },
-      "required": [
-        "id",
-        "employeeId",
-        "name"
+        "email",
+        "role"
       ]
     }
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "emailPassword"
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/clients/{clientId}",
-        "definition": {
-          "entityName": "Client",
-          "schema": {
-            "$ref": "#/backend/entities/Client"
-          },
-          "description": "Stores client data. Access is restricted to the client identified by clientId (request.auth.uid == clientId).",
-          "params": [
-            {
-              "name": "clientId",
-              "description": "The unique ID of the client, matching the Firebase Auth UID."
-            }
-          ]
-        }
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
       },
-      {
-        "path": "/staff/{staffId}",
-        "definition": {
-          "entityName": "Staff",
-          "schema": {
-            "$ref": "#/backend/entities/Staff"
-          },
-          "description": "Stores staff member data. Existence of a document at this path grants staff privileges.",
-          "params": [
-            {
-              "name": "staffId",
-              "description": "The unique ID of the staff member. Access to client data is granted based on the existence of this document."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/outlets/{outletId}",
-        "definition": {
-          "entityName": "Outlet",
-          "schema": {
-            "$ref": "#/backend/entities/Outlet"
-          },
-          "description": "Stores data for each outlet.",
-          "params": [
-            {
-              "name": "outletId",
-              "description": "The unique ID of the outlet."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/menu_items/{menuItemId}",
-        "definition": {
-          "entityName": "MenuItem",
-          "schema": {
-            "$ref": "#/backend/entities/MenuItem"
-          },
-          "description": "Stores data for each menu item. Includes denormalized 'outletId' for authorization independence when listing menu items for an outlet.",
-          "params": [
-            {
-              "name": "menuItemId",
-              "description": "The unique ID of the menu item."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "This Firestore structure prioritizes authorization independence and clarity for the DineHub application, focusing on user management and staff access to client data. It leverages path-based ownership for client data and a dedicated collection for staff roles.\n\n1.  **Authorization Independence:** The structure avoids `get()` calls in security rules by storing client data directly under the `/clients/{clientId}` path and restricting access based on the authenticated user's UID, eliminating hierarchical dependencies. Staff access is governed by a separate `/staff/{staffId}` document that determines whether a user can access client information. A similar approach is used with `/outlets/{outletId}` and `/menu_items/{menuItemId}`, where `outletId` is duplicated into the `menu_items` collection to allow for listing items by `outletId` without requiring a `get()` on the `outlets` document. This ensures that document access can be determined independently without needing to read parent documents.\n2.  **Structural Segregation:** Client data is stored separately from staff data, preventing unintended access. Public menu items can be stored in a separate collection from administrative information related to the restaurant.\n3.  **Access Modeling:** Client data is owned by the user identified by `request.auth.uid`, and staff access is determined by the existence of a `/staff/{staffId}` document. The structure uses path-based ownership (`/clients/{clientId}`) to clearly define the owner of the data, improving security and debuggability.\n4.  **QAPs (Rules are not Filters):** The `/clients` collection and `/staff` collection structures are designed to support secure `list` operations. Staff can `list` clients but are limited by rules based on their role. The denormalization of `outletId` allows listing `menu_items` by `outletId` without a `get()` call.\n5.  **Invariants:** The structure supports data integrity by ensuring that each client's data is associated with their unique `clientId`, and staff access is controlled through the `/staff/{staffId}` collection. Timestamps can be added within the client documents to track creation and modification times.\n\nThis design promotes simple, robust, and easily debuggable security rules by enforcing authorization independence, leveraging structural segregation, and following consistent access modeling principles."
+      "description": "Stores user profile data. Access is restricted: users can read/write their own profile. Staff can read client profiles."
+    }
   }
 }

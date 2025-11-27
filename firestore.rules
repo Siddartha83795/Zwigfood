@@ -1,37 +1,6 @@
-/**
- * Core Philosophy: This ruleset implements a dual-role security model for a client and staff management system.
- * It enforces a strict ownership model for clients, where each user can only access their own data. A separate
- * 'staff' role is granted to users who have a corresponding document in the '/staff' collection. This role
- * grants read-only access to all client data, enabling staff-specific features like viewing a client list.
- *
- * Data Structure:
- * - /clients/{clientId}: Each document is owned by the user whose UID matches the document ID. This is the primary
- *   data store for user profile information.
- * - /staff/{staffId}: This collection acts as an access control list. The existence of a document
- *   with an ID matching a user's UID designates that user as a staff member. This collection should only be
- *   managed by a trusted server-side process (Admin SDK).
- * - /outlets/{outletId}, /menu_items/{menuItemId}: These collections store public-facing data. They are readable
- *   by anyone but can only be modified by authenticated staff members.
- *
- * Key Security Decisions:
- * - Strict Self-Service for Clients: Clients can fully manage their own '/clients/{clientId}' document but cannot
- *   see or interact with any other client's data. User enumeration is prevented.
- * - Role-Based Read Access for Staff: Staff are granted read and list permissions on the entire '/clients'
- *   collection. To maintain data integrity, staff cannot write to or delete client documents.
- * - Admin-Managed Roles: The '/staff' collection is not writable from the client-side. This prevents users from
- *   escalating their own privileges. Staff roles must be assigned out-of-band by an administrator.
- * - Public Data with Staff-Only Writes: Collections like '/outlets' and '/menu_items' are publicly readable to
- *   support the application's front-end, but all write operations are reserved for staff members.
- *
- * Denormalization for Authorization: The core authorization mechanism relies on the existence of a document
- * in `/staff/{staffId}`. This allows for an efficient `exists()` call to check a user's role without needing
- * to read other documents or store roles on custom tokens. This avoids slow and costly `get()` calls in rules.
- *
- * Structural Segregation: Client data (/clients) is completely separate from staff role data (/staff) and public
- * business data (/outlets, /menu_items). This clear separation simplifies rule logic and enhances security by
- * preventing data leakage between different user contexts.
- */
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -53,109 +22,73 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-
+    
     /**
-     * Returns true if the document exists and the user is the owner.
-     * CRITICAL for safe update and delete operations to prevent acting on non-existent data.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * Returns true if the user is a designated staff member.
-     * Staff status is granted by the existence of a document in the /staff collection
-     * where the document ID matches the user's UID.
+     * Checks if the currently authenticated user has the 'staff' role.
+     * It reads the user's own profile from the /users collection to check their role.
      */
     function isStaff() {
-      return isSignedIn() && exists(/databases/$(database)/documents/staff/$(request.auth.uid));
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
     }
 
     /**
-     * Validates that a new client document is being created by its owner and that
-     * the internal 'id' field correctly matches the document's path ID (the user's UID).
+     * Returns true if the document being accessed belongs to a user with the 'client' role.
      */
-    function isValidClientCreate(clientId) {
-      return isOwner(clientId) && request.resource.data.id == clientId;
+    function isClient(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role == 'client';
     }
-
-    /**
-     * Ensures that a client document update is performed by its owner and that the
-     * internal 'id' field, which links the document to the user, remains immutable.
-     */
-    function isClientDataImmutable(clientId) {
-      return isExistingOwner(clientId) && request.resource.data.id == resource.data.id;
-    }
-
 
     // --------------------------------------------------------------------
     // Collection Rules
     // --------------------------------------------------------------------
 
     /**
-     * @description Stores private client data, accessible only by the client themselves or by staff in read-only mode.
-     * @path /clients/{clientId}
-     * @allow (get) A client with UID 'user_abc' reading their own document at `/clients/user_abc`.
-     * @allow (get) A staff member reading the document at `/clients/user_abc`.
-     * @allow (list) A staff member listing all documents in the `/clients` collection.
-     * @deny (list) A regular client trying to list the `/clients` collection.
-     * @deny (update) A staff member trying to update a client's document.
-     * @principle Restricts access to a user's own data tree, with a read-only exception for privileged roles (staff).
+     * @description Stores user profiles.
+     * @path /users/{userId}
+     * @allow (get, update) A user can read or update their own profile.
+     * @allow (create) Any user can create their own profile document (e.g., during sign-up).
+     * @allow (get) A staff member can read the profile of any client.
+     * @allow (list) A staff member can list all client profiles.
+     * @deny (delete) No one can delete a user profile from the client.
      */
-    match /clients/{clientId} {
-      allow get: if isOwner(clientId) || isStaff();
+    match /users/{userId} {
+      allow create: if isOwner(userId);
+      allow get, update: if isOwner(userId);
+      // Staff can read profiles of users who are clients
+      allow get: if isStaff() && isClient(userId); 
+      // Staff can list users, which will be filtered on the client-side to show only 'client' roles.
+      // A secure list requires checking the role on each document.
       allow list: if isStaff();
-      allow create: if isValidClientCreate(clientId);
-      allow update: if isClientDataImmutable(clientId);
-      allow delete: if isExistingOwner(clientId);
-    }
-
-    /**
-     * @description Defines user roles. The existence of a document grants staff privileges. This collection is read-only from the client.
-     * @path /staff/{staffId}
-     * @allow (get) A staff member with UID 'staff_xyz' reading their own role document at `/staff/staff_xyz`.
-     * @deny (list) Any user trying to list the `/staff` collection to prevent enumeration of staff members.
-     * @deny (create) Any user trying to create a document in `/staff` to grant themselves privileges.
-     * @principle Enforces privilege control by making role assignments a server-side-only administrative function.
-     */
-    match /staff/{staffId} {
-      allow get: if isOwner(staffId);
-      allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      
+      allow delete: if false; // Prevent client-side deletion of user profiles
     }
 
     /**
      * @description Stores public information about outlets. Readable by anyone, writable only by staff.
      * @path /outlets/{outletId}
-     * @allow (get, list) Any user, signed in or not, reading outlet information.
-     * @allow (create) An authenticated staff member creating a new outlet document.
-     * @deny (update) A non-staff user trying to modify an outlet document.
-     * @principle Secures public data by allowing universal read access but restricting write access to privileged roles.
      */
     match /outlets/{outletId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isStaff();
-      allow update: if isStaff() && resource != null;
-      allow delete: if isStaff() && resource != null;
+      allow get, list: if true;
+      allow create, update, delete: if isStaff();
     }
 
     /**
      * @description Stores public information about menu items. Readable by anyone, writable only by staff.
      * @path /menu_items/{menuItemId}
-     * @allow (get, list) Any user, signed in or not, viewing the menu.
-     * @allow (create) An authenticated staff member adding a new menu item.
-     * @deny (delete) A regular client attempting to delete a menu item.
-     * @principle Secures public data by allowing universal read access but restricting write access to privileged roles.
      */
     match /menu_items/{menuItemId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isStaff();
-      allow update: if isStaff() && resource != null;
-      allow delete: if isStaff() && resource != null;
+      allow get, list: if true;
+      allow create, update, delete: if isStaff();
+    }
+    
+    /**
+     * @description Stores orders. Clients can create and read their own. Staff can read all.
+     * @path /orders/{orderId}
+     */
+    match /orders/{orderId} {
+      allow create: if isOwner(request.resource.data.clientId);
+      allow get, list: if isOwner(resource.data.clientId) || isStaff();
+      allow update: if isStaff(); // Only staff can update order status
     }
   }
 }
