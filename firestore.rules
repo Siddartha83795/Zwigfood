@@ -44,8 +44,6 @@ service cloud.firestore {
      */
     function isValidOrder() {
       let incomingData = request.resource.data;
-      // We check that the `createdAt` field is a server timestamp on write.
-      // The `isOwner` check verifies that the client ID on the order matches the logged-in user.
       return isSignedIn() &&
              isOwner(incomingData.client.id) &&
              incomingData.outletId is string &&
@@ -107,9 +105,8 @@ service cloud.firestore {
     match /orders/{orderId} {
       allow create: if isValidOrder();
       allow get: if isOwner(resource.data.client.id) || isStaff();
-      // This rule secures collection queries. It ensures non-staff users can ONLY
-      // query for their own documents by enforcing a `where` clause on their UID.
-      allow list: if isStaff() || request.auth.uid != null;
+      // Ensures clients can only query for their own orders.
+      allow list: if isStaff() || (request.query.where[0][0] == 'client.id' && request.query.where[0][2] == request.auth.uid && request.query.limit <= 100);
       allow update: if isStaff(); // Only staff can update order status
     }
 
