@@ -25,22 +25,10 @@ service cloud.firestore {
     
     /**
      * Checks if the currently authenticated user has the 'staff' role
-     * by reading the role from their custom claims.
+     * by reading the role from their user profile document.
      */
     function isStaff() {
-      // In a real app, you would get this from custom claims.
-      // For this demo, we'll check a field in their user profile.
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
-    }
-
-    /**
-     * Returns true if the document being accessed belongs to a user with the 'client' role.
-     */
-    function isClient(userId) {
-      // Note: This relies on reading another document, which has cost implications.
-      // Using custom claims (like for isStaff) is often more efficient.
-      let userDoc = get(/databases/$(database)/documents/users/$(userId));
-      return userDoc.data.role == 'client';
     }
     
     /**
@@ -67,7 +55,7 @@ service cloud.firestore {
      */
     match /users/{userId} {
       allow create: if isOwner(userId);
-      allow get, update: if isOwner(userId);
+      allow get, update: if isOwner(userId) || isStaff();
       allow list: if isStaff();
       allow delete: if false; 
     }
@@ -95,17 +83,18 @@ service cloud.firestore {
      * @path /orders/{orderId}
      */
     match /orders/{orderId} {
-      // Any authenticated user can create an order.
+      // Any authenticated user can create an order, provided it's valid.
       allow create: if isValidOrder();
 
-      // Clients can read their own orders. Staff can read all orders.
-      allow get: if isOwner(resource.data.client.id) || isStaff();
-      
-      // Clients can only list their own orders. Staff can list all orders.
-      allow list: if isStaff() || (request.query.where[0][0] == 'client.id' && request.query.where[0][2] == request.auth.uid);
+      // Users can read their own orders. Staff can read all orders.
+      // This rule is checked against each document returned by a query.
+      allow read: if isOwner(resource.data.client.id) || isStaff();
       
       // Only staff can update order status.
       allow update: if isStaff(); 
+      
+      // No one can delete orders for now.
+      allow delete: if false;
     }
 
     /**
@@ -113,7 +102,8 @@ service cloud.firestore {
      * @path /counters/{outletId}
      */
      match /counters/{outletId} {
-        allow get, update, create, delete: if isSignedIn();
+        // Only staff should be able to manage counters.
+        allow read, write: if isStaff();
      }
   }
 }
