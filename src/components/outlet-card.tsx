@@ -35,6 +35,9 @@ export default function OutletCard({ outlet }: OutletCardProps) {
           <CardTitle className="font-headline">{outlet.name}</CardTitle>
           <CardDescription>{outlet.description}</CardDescription>
         </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Est. Delivery: {outlet.baseDeliveryTime} mins</p>
+        </CardContent>
       </Card>
     </Link>
   );

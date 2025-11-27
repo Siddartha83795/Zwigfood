@@ -1,58 +1,51 @@
 'use client';
 
-import { useFirebase, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { mockUserProfile } from '@/lib/data';
+import type { UserProfile } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, Users } from 'lucide-react';
-
-interface ClientProfile {
-  id: string;
-  fullName: string;
-  email: string;
-  phoneNumber: string;
-}
+import { Users } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function StaffDashboardPage() {
+  const [clients, setClients] = useState<UserProfile[]>([]);
   const router = useRouter();
-  const { firestore } = useFirebase();
-  const { user, isUserLoading } = useUser();
 
-  const clientsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'users'), where('role', '==', 'client'));
-  }, [firestore]);
-
-  const { data: clients, isLoading, error } = useCollection<ClientProfile>(clientsQuery);
-  
-  // Redirect if user is not staff
   useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.replace('/auth/login');
+    const userRole = localStorage.getItem('userRole');
+    if (userRole !== 'staff') {
+      router.push('/auth/login');
+      return;
     }
-  }, [user, isUserLoading, router]);
-
-  const renderSkeleton = () => (
-    <div className="space-y-2">
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-10 w-full" />
-    </div>
-  );
+    // In a real app, this would be an API call
+    // For now, we will simulate it with mock data
+    const mockClients: UserProfile[] = [
+      { id: '1', fullName: 'Alice Johnson', email: 'alice@example.com', phoneNumber: '+919876543210', role: 'client'},
+      { id: '2', fullName: 'Bob Williams', email: 'bob@example.com', phoneNumber: '+919876543211', role: 'client' },
+      { id: '3', fullName: 'Charlie Brown', email: 'charlie@example.com', phoneNumber: '+919876543212', role: 'client' },
+    ];
+    setClients(mockClients);
+  }, [router]);
 
   return (
     <div className="container py-12">
-       <div className="mb-8">
-            <h1 className="text-4xl font-bold font-headline tracking-tight text-foreground sm:text-5xl">
-                Staff Dashboard
-            </h1>
-            <p className="mt-2 text-lg text-muted-foreground">
-                View all registered clients.
-            </p>
+       <div className="mb-8 flex justify-between items-center">
+            <div>
+                <h1 className="text-4xl font-bold font-headline tracking-tight text-foreground sm:text-5xl">
+                    Staff Dashboard
+                </h1>
+                <p className="mt-2 text-lg text-muted-foreground">
+                    View registered clients and manage orders.
+                </p>
+            </div>
+            <div>
+                <Button asChild>
+                    <Link href="/staff/dashboard/outlet-1">View Orders</Link>
+                </Button>
+            </div>
         </div>
 
         <Card>
@@ -66,40 +59,30 @@ export default function StaffDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-             {isLoading && renderSkeleton()}
-             {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Error Fetching Clients</AlertTitle>
-                  <AlertDescription>{error.message}</AlertDescription>
-                </Alert>
-              )}
-            {!isLoading && !error && (
-               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Full Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone Number</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {clients && clients.length > 0 ? (
-                     clients.map(client => (
-                        <TableRow key={client.id}>
-                          <TableCell className="font-medium">{client.fullName}</TableCell>
-                          <TableCell>{client.email}</TableCell>
-                          <TableCell>{client.phoneNumber}</TableCell>
-                        </TableRow>
-                      ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center">No clients found.</TableCell>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Full Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone Number</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {clients.length > 0 ? (
+                  clients.map(client => (
+                    <TableRow key={client.id}>
+                      <TableCell className="font-medium">{client.fullName}</TableCell>
+                      <TableCell>{client.email}</TableCell>
+                      <TableCell>{client.phoneNumber}</TableCell>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            )}
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center">No clients found.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
     </div>

@@ -15,10 +15,6 @@ import { Menu, UtensilsCrossed, User, ShoppingCart, LogOut, LayoutDashboard } fr
 import { useCart } from '@/context/cart-context';
 import { ThemeToggle } from './theme-toggle';
 import { usePathname, useRouter } from 'next/navigation';
-import { useUser, useFirebase } from '@/firebase';
-import { signOut } from 'firebase/auth';
-import { useToast } from '@/hooks/use-toast';
-import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 
 const navLinks = [
@@ -28,46 +24,34 @@ const navLinks = [
 
 export default function Header() {
   const { itemCount } = useCart();
-  const { user, isUserLoading } = useUser();
-  const { auth, firestore } = useFirebase();
-  const [userProfile, setUserProfile] = useState<{ fullName?: string; role?: string } | null>(null);
-
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
-  const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
-      const userDocRef = doc(firestore, 'users', user.uid);
-      getDoc(userDocRef).then(docSnap => {
-        if (docSnap.exists()) {
-          setUserProfile(docSnap.data() as { fullName: string; role: string });
-        }
-      });
-    } else {
-      setUserProfile(null);
-    }
-  }, [user, firestore]);
+    // Check login status from localStorage on mount
+    const loggedInStatus = localStorage.getItem('isLoggedIn') === 'true';
+    const storedRole = localStorage.getItem('userRole');
+    const storedUsername = localStorage.getItem('username');
+    setIsLoggedIn(loggedInStatus);
+    setUserRole(storedRole);
+    setUsername(storedUsername);
+  }, [pathname]); // Re-check on path change
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      toast({
-        title: "Logged Out",
-        description: "You have been successfully logged out.",
-      });
-      router.push('/auth/login');
-    } catch (error) {
-      console.error("Logout failed:", error);
-      toast({
-        variant: 'destructive',
-        title: "Logout Failed",
-        description: "An error occurred while logging out.",
-      });
-    }
+  const handleLogout = () => {
+    // Clear login status from localStorage
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('username');
+    setIsLoggedIn(false);
+    setUserRole(null);
+    setUsername(null);
+    router.push('/auth/login');
   };
   
-  const showNavLinks = user && userProfile?.role === 'client' && pathname !== '/';
+  const showNavLinks = isLoggedIn && userRole === 'client' && pathname !== '/';
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -93,12 +77,12 @@ export default function Header() {
         )}
         <div className="flex flex-1 items-center justify-end gap-2">
            <ThemeToggle />
-           {userProfile?.role === 'client' && (
+           {isLoggedIn && userRole === 'client' && (
             <Button asChild variant="ghost" size="icon" className="relative">
                 <Link href="/cart">
                     <ShoppingCart className="h-5 w-5"/>
                     {itemCount > 0 && (
-                        <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground -translate-y-1/2 translate-x-1/2">
+                        <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                             {itemCount}
                         </span>
                     )}
@@ -107,18 +91,18 @@ export default function Header() {
             </Button>
            )}
 
-          {!isUserLoading && user ? (
+          {isLoggedIn ? (
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost">
                     <User className="h-5 w-5 mr-2"/>
-                    <span>Welcome, {userProfile?.fullName?.split(' ')[0] || ''}</span>
+                    <span>Welcome, {username || 'User'}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {userProfile?.role === 'client' && (
+                  {userRole === 'client' && (
                     <>
                       <DropdownMenuItem asChild>
                         <Link href="/profile"><User className="mr-2 h-4 w-4" />Profile</Link>
@@ -128,7 +112,7 @@ export default function Header() {
                       </DropdownMenuItem>
                     </>
                   )}
-                   {userProfile?.role === 'staff' && (
+                   {userRole === 'staff' && (
                     <DropdownMenuItem asChild>
                       <Link href="/staff/dashboard"><LayoutDashboard className="mr-2 h-4 w-4" />Dashboard</Link>
                     </DropdownMenuItem>
@@ -140,7 +124,7 @@ export default function Header() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-          ) : !isUserLoading && (
+          ) : (
             pathname !== '/' && (
               <Button asChild variant="default" className='hidden md:inline-flex'>
                 <Link href="/auth/login">
@@ -175,7 +159,7 @@ export default function Header() {
                     {link.label}
                   </Link>
                 ))}
-                 {!user && !isUserLoading && (
+                 {!isLoggedIn && (
                    <Link
                       href={'/auth/login'}
                       className="text-muted-foreground transition-colors hover:text-foreground"

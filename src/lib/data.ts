@@ -145,3 +145,97 @@ export const menuItems: MenuItem[] = [
     averagePrepTime: 1,
   },
 ];
+
+export const orders: Order[] = [
+  {
+    id: 'order-1',
+    orderNumber: 'DH-001',
+    tokenNumber: 1,
+    outletId: 'outlet-1',
+    items: [
+      { menuItem: menuItems[0], quantity: 1 },
+      { menuItem: menuItems[1], quantity: 2 },
+    ],
+    totalAmountInr: 320,
+    status: 'pending',
+    createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    estimatedWaitTime: 15,
+    client: {
+      id: 'client-1',
+      fullName: 'John Doe',
+      email: 'john.doe@example.com',
+      phoneNumber: '+919876543210'
+    }
+  },
+  {
+    id: 'order-2',
+    orderNumber: 'DH-002',
+    tokenNumber: 2,
+    outletId: 'outlet-1',
+    items: [{ menuItem: menuItems[2], quantity: 1 }],
+    totalAmountInr: 150,
+    status: 'preparing',
+    createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+    estimatedWaitTime: 20,
+     client: {
+      id: 'client-2',
+      fullName: 'Jane Smith',
+      email: 'jane.smith@example.com',
+      phoneNumber: '+919876543211'
+    }
+  },
+  {
+    id: 'order-3',
+    orderNumber: 'DH-003',
+    tokenNumber: 3,
+    outletId: 'outlet-2',
+    items: [{ menuItem: menuItems[7], quantity: 3 }],
+    totalAmountInr: 480,
+    status: 'ready',
+    createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+    estimatedWaitTime: 10,
+     client: {
+      id: 'client-3',
+      fullName: 'Peter Jones',
+      email: 'peter.jones@example.com',
+      phoneNumber: '+919876543212'
+    }
+  },
+  {
+    id: 'order-4',
+    orderNumber: 'DH-004',
+    tokenNumber: 4,
+    outletId: 'outlet-1',
+    items: [
+      { menuItem: menuItems[3], quantity: 1 },
+      { menuItem: menuItems[4], quantity: 2 },
+    ],
+    totalAmountInr: 240,
+    status: 'completed',
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    estimatedWaitTime: 25,
+     client: {
+      id: 'client-1',
+      fullName: 'John Doe',
+      email: 'john.doe@example.com',
+      phoneNumber: '+919876543210'
+    }
+  },
+];
+
+
+export const mockUserProfile: UserProfile = {
+  id: 'client-1',
+  fullName: 'John Doe',
+  email: 'john.doe@example.com',
+  phoneNumber: '+919876543210',
+  role: 'client'
+};
+
+export const mockStaffProfile: UserProfile = {
+  id: 'staff-1',
+  fullName: 'Staff Member',
+  email: 'staff@example.com',
+  phoneNumber: '+911234567890',
+  role: 'staff'
+};

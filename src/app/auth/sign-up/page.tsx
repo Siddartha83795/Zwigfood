@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,9 +12,6 @@ import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Mail, KeyRound, User, Phone } from 'lucide-react';
 import Link from 'next/link';
-import { useFirebase } from '@/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
 
 const signUpSchema = z.object({
   fullName: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -27,7 +25,7 @@ type SignUpFormValues = z.infer<typeof signUpSchema>;
 export default function SignUpPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const { auth, firestore } = useFirebase();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const form = useForm<SignUpFormValues>({
         resolver: zodResolver(signUpSchema),
@@ -40,40 +38,18 @@ export default function SignUpPage() {
         },
     });
 
-    const onSubmit: SubmitHandler<SignUpFormValues> = async (data) => {
-        try {
-            // 1. Create user in Firebase Auth
-            const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-            const user = userCredential.user;
-
-            // 2. Create user profile in Firestore
-            const userProfile = {
-                id: user.uid,
-                fullName: data.fullName,
-                email: data.email,
-                phoneNumber: data.phoneNumber,
-                role: 'client', // All sign-ups are clients
-            };
-
-            await setDoc(doc(firestore, 'users', user.uid), userProfile);
-
+    const onSubmit: SubmitHandler<SignUpFormValues> = (data) => {
+        setIsSubmitting(true);
+        // Simulate API call
+        setTimeout(() => {
+            console.log("New user registered:", data);
             toast({
                 title: "Registration Successful",
                 description: "Your account has been created. Please log in.",
             });
-            
+            setIsSubmitting(false);
             router.push('/auth/login');
-
-        } catch (error: any) {
-            console.error("Registration failed:", error);
-            toast({
-                variant: 'destructive',
-                title: "Registration Failed",
-                description: error.code === 'auth/email-already-in-use' 
-                    ? 'This email is already registered.' 
-                    : (error.message || "An unexpected error occurred."),
-            });
-        }
+        }, 1500);
     };
 
   return (
@@ -150,8 +126,8 @@ export default function SignUpPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Creating Account...' : 'Sign Up'}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating Account...' : 'Sign Up'}
               </Button>
             </form>
           </Form>

@@ -1,32 +1,31 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import OutletCard from '@/components/outlet-card';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { outlets as mockOutlets } from '@/lib/data';
 import type { Outlet } from '@/lib/types';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useRouter } from 'next/navigation';
 
 export default function OutletsPage() {
-  const { firestore } = useFirebase();
+  const [outlets, setOutlets] = useState<Outlet[]>([]);
+  const router = useRouter();
 
-  const outletsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'outlets');
-  }, [firestore]);
+  useEffect(() => {
+    // Simulate fetching data
+    setOutlets(mockOutlets);
+    const handlePopState = () => {
+      // Clear login status and redirect
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('userRole');
+      router.push('/auth/login');
+    };
 
-  const { data: outlets, isLoading } = useCollection<Outlet>(outletsQuery);
+    window.addEventListener('popstate', handlePopState);
 
-  const renderSkeletons = () => (
-    Array.from({ length: 2 }).map((_, i) => (
-      <div key={i} className="space-y-4">
-        <Skeleton className="h-48 w-full" />
-        <div className="space-y-2 p-4">
-          <Skeleton className="h-6 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-        </div>
-      </div>
-    ))
-  );
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [router]);
 
   return (
     <div className="container py-12">
@@ -39,8 +38,7 @@ export default function OutletsPage() {
         </p>
       </div>
       <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-        {isLoading && renderSkeletons()}
-        {outlets && outlets.map((outlet) => (
+        {outlets.map((outlet) => (
           <OutletCard key={outlet.id} outlet={outlet} />
         ))}
       </div>

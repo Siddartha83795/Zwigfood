@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,9 +12,7 @@ import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Mail, KeyRound } from 'lucide-react';
 import Link from 'next/link';
-import { useFirebase } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { mockUserProfile, mockStaffProfile } from '@/lib/data';
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -24,7 +23,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const { auth, firestore } = useFirebase();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const form = useForm<LoginFormValues>({
         resolver: zodResolver(loginSchema),
@@ -35,39 +34,37 @@ export default function LoginPage() {
         },
     });
 
-    const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-        const user = userCredential.user;
-
-        // Check user role from Firestore
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          toast({
-            title: "Login Successful",
-            description: `Welcome back, ${userData.fullName}!`,
-          });
-
-          if (userData.role === 'staff') {
-            router.push('/staff/dashboard');
-          } else {
-            router.push('/outlets');
-          }
-        } else {
-           throw new Error("User data not found.");
-        }
-
-      } catch (error: any) {
-        console.error("Login failed:", error);
-        toast({
-          variant: 'destructive',
-          title: "Login Failed",
-          description: error.message || "Invalid email or password.",
-        });
-      }
+    const onSubmit: SubmitHandler<LoginFormValues> = (data) => {
+        setIsSubmitting(true);
+        // Simulate an API call
+        setTimeout(() => {
+            if (data.email === mockUserProfile.email && data.password === "password123") {
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('userRole', 'client');
+                localStorage.setItem('username', mockUserProfile.fullName);
+                toast({
+                    title: "Login Successful",
+                    description: `Welcome back, ${mockUserProfile.fullName}!`,
+                });
+                router.push('/outlets');
+            } else if (data.email === mockStaffProfile.email && data.password === "staffpass") {
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('userRole', 'staff');
+                localStorage.setItem('username', mockStaffProfile.fullName);
+                toast({
+                    title: "Staff Login Successful",
+                    description: `Welcome, ${mockStaffProfile.fullName}!`,
+                });
+                router.push('/staff/dashboard');
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: "Login Failed",
+                    description: "Invalid email or password.",
+                });
+            }
+            setIsSubmitting(false);
+        }, 1500);
     };
 
   return (
@@ -112,8 +109,8 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Logging in...' : 'Login'}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Logging in...' : 'Login'}
               </Button>
             </form>
           </Form>

@@ -1,15 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import type { Order, OrderStatus } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Clock, Tag, Utensils, User, Phone, Mail, ChevronRight, Check } from 'lucide-react';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, updateDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { cva } from 'class-variance-authority';
-import type { Outlet } from '@/lib/types';
+import { outlets as mockOutlets } from '@/lib/data';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,23 +48,21 @@ const nextStatus: Record<OrderStatus, OrderStatus | null> = {
 }
 
 export default function OrderCard({ order, isStaffView = false }: OrderCardProps) {
-  const { firestore } = useFirebase();
-  const outletsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'outlets') : null, [firestore]);
-  const { data: outlets } = useCollection<Outlet>(outletsQuery);
-  const outlet = outlets?.find(o => o.id === order.outletId);
+  const [currentStatus, setCurrentStatus] = useState<OrderStatus>(order.status);
+  const outlet = mockOutlets.find(o => o.id === order.outletId);
 
   // Time calculation can be tricky with server vs client time.
   // We'll use client time for simplicity.
-  const createdAt = new Date(typeof order.createdAt === 'string' ? order.createdAt : order.createdAt.toDate());
+  const createdAt = new Date(order.createdAt);
   const timeAgo = Math.round((new Date().getTime() - createdAt.getTime()) / (1000 * 60));
 
-  const handleStatusUpdate = async (newStatus: OrderStatus) => {
-    if (!firestore) return;
-    const orderRef = doc(firestore, 'orders', order.id);
-    await updateDoc(orderRef, { status: newStatus });
+  const handleStatusUpdate = (newStatus: OrderStatus) => {
+    // In a real app, you would make an API call here.
+    // For now, we just update the local state.
+    setCurrentStatus(newStatus);
   };
 
-  const nextAction = nextStatus[order.status];
+  const nextAction = nextStatus[currentStatus];
 
   return (
     <Card className="h-full flex flex-col">
@@ -80,8 +77,8 @@ export default function OrderCard({ order, isStaffView = false }: OrderCardProps
                     Token {order.tokenNumber}
                 </CardDescription>
             </div>
-          <Badge variant="outline" className={cn(statusVariants({ status: order.status }))}>
-            {order.status}
+          <Badge variant="outline" className={cn(statusVariants({ status: currentStatus }))}>
+            {currentStatus}
           </Badge>
         </div>
         {isStaffView && order.client ? (

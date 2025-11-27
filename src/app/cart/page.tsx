@@ -14,82 +14,26 @@ import { useRouter } from 'next/navigation';
 import { predictWaitTime } from '@/app/actions';
 import type { PredictWaitTimeOutput } from '@/ai/flows/intelligent-wait-time-prediction';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useFirebase, useUser } from '@/firebase';
-import { addDoc, collection, doc, getDocs, query, serverTimestamp } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
 
 export default function CartPage() {
-  const { cart, removeFromCart, updateQuantity, cartTotal, itemCount, outletId, clearCart } = useCart();
+  const { cart, removeFromCart, updateQuantity, cartTotal, itemCount, outletId } = useCart();
   const router = useRouter();
-  const { firestore } = useFirebase();
-  const { user } = useUser();
-  const { toast } = useToast();
   
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [prediction, setPrediction] = useState<PredictWaitTimeOutput | null>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [predictionError, setPredictionError] = useState<string | null>(null);
 
-  const handlePlaceOrder = async () => {
-    if (!user || !outletId || !firestore) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "You must be logged in to place an order.",
-      });
-      return;
-    }
+  const handlePlaceOrder = () => {
     setIsPlacingOrder(true);
-
-    try {
-        const ordersCollection = collection(firestore, 'orders');
-        
-        // Simple token generation: find max token for outlet and increment
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const q = query(collection(firestore, "orders"));
-        const querySnapshot = await getDocs(q);
-        const maxToken = querySnapshot.docs.reduce((max, doc) => {
-            return Math.max(max, doc.data().tokenNumber || 0);
-        }, 0);
-
-        const newOrder = {
-            outletId,
-            items: cart,
-            totalAmountInr: cartTotal * 1.05, // with 5% tax
-            status: 'pending',
-            createdAt: serverTimestamp(),
-            tokenNumber: maxToken + 1,
-            orderNumber: `DH-${String(maxToken + 1).padStart(4, '0')}`,
-            estimatedWaitTime: prediction?.estimatedWaitTime || Math.floor(15 + Math.random() * 10),
-            client: {
-                id: user.uid,
-                fullName: user.displayName || 'N/A',
-                email: user.email || 'N/A',
-                phoneNumber: user.phoneNumber || 'N/A',
-            },
-        };
-
-        const docRef = await addDoc(ordersCollection, newOrder);
-
-        toast({
-            title: "Order Placed!",
-            description: "Your order has been sent to the outlet.",
-        });
-
-        clearCart();
-        router.push(`/order-confirmation?token=${newOrder.tokenNumber}&eta=${newOrder.estimatedWaitTime}`);
-    } catch (error) {
-        console.error("Order placement failed:", error);
-        toast({
-            variant: "destructive",
-            title: "Order Failed",
-            description: "Could not place your order. Please try again.",
-        });
-    } finally {
-        setIsPlacingOrder(false);
-    }
+    // Simulate API call
+    setTimeout(() => {
+      setIsPlacingOrder(false);
+      // For now, generate a random token and ETA
+      const token = Math.floor(Math.random() * 900) + 100;
+      const eta = prediction?.estimatedWaitTime || Math.floor(15 + Math.random() * 10);
+      router.push(`/order-confirmation?token=${token}&eta=${eta}`);
+    }, 2000);
   };
   
   const handlePredictWaitTime = async () => {
