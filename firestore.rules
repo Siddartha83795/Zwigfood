@@ -105,7 +105,7 @@ service cloud.firestore {
       allow list: if isStaff();
 
       // Only staff can update order status. Clients can cancel their own 'pending' orders.
-      allow update: if isStaff(); 
+      allow update: if isStaff() || (isOwner(resource.data.client.id) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending');
       
       // No one can delete orders for now.
       allow delete: if false;
