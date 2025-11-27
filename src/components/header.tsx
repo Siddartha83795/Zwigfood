@@ -27,24 +27,28 @@ const navLinks = [
 export default function Header() {
   const { itemCount } = useCart();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    // This is a simple simulation of checking auth state.
-    // In a real app, you would check a token, a cookie, or an auth provider's state.
     if (typeof window !== 'undefined') {
         const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
         setIsLoggedIn(loggedIn);
+        setUserRole(localStorage.getItem('userRole'));
     }
   }, [pathname]); // Rerun on route change
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userRole');
     setIsLoggedIn(false);
+    setUserRole(null);
     router.push('/auth/login');
   };
   
+  const showNavLinks = isLoggedIn && userRole === 'client' && pathname !== '/';
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
@@ -54,7 +58,7 @@ export default function Header() {
             DineHub
           </span>
         </Link>
-        {pathname !== '/' && (
+        {showNavLinks && (
           <nav className="hidden gap-6 md:flex flex-1">
             {navLinks.map((link) => (
               <Link
@@ -92,13 +96,17 @@ export default function Header() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile"><User className="mr-2 h-4 w-4" />Profile</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/orders"><LayoutDashboard className="mr-2 h-4 w-4" />My Orders</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  {userRole === 'client' && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/profile"><User className="mr-2 h-4 w-4" />Profile</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/orders"><LayoutDashboard className="mr-2 h-4 w-4" />My Orders</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
@@ -106,11 +114,13 @@ export default function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
           ) : (
-            <Button asChild variant="default" className='hidden md:inline-flex'>
-              <Link href="/auth/login">
-                Login
-              </Link>
-            </Button>
+            pathname !== '/' && (
+              <Button asChild variant="default" className='hidden md:inline-flex'>
+                <Link href="/auth/login">
+                  Login
+                </Link>
+              </Button>
+            )
           )}
 
           <Sheet>
@@ -129,7 +139,7 @@ export default function Header() {
                   <UtensilsCrossed className="h-6 w-6 text-primary" />
                   <span className="font-headline">DineHub</span>
                 </Link>
-                {navLinks.map((link) => (
+                {showNavLinks && navLinks.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
@@ -138,12 +148,14 @@ export default function Header() {
                     {link.label}
                   </Link>
                 ))}
-                 <Link
-                    href={'/auth/login'}
-                    className="text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    Login
-                  </Link>
+                 {!isLoggedIn && (
+                   <Link
+                      href={'/auth/login'}
+                      className="text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      Login
+                    </Link>
+                  )}
               </nav>
             </SheetContent>
           </Sheet>
