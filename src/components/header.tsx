@@ -51,7 +51,7 @@ export default function Header() {
     router.push('/auth/login');
   };
   
-  const showNavLinks = isLoggedIn && userRole === 'client' && pathname !== '/';
+  const showNavLinks = isLoggedIn && userRole === 'client' && !pathname.startsWith('/staff') && pathname !== '/';
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -114,7 +114,7 @@ export default function Header() {
                   )}
                    {userRole === 'staff' && (
                     <DropdownMenuItem asChild>
-                      <Link href="/staff/dashboard"><LayoutDashboard className="mr-2 h-4 w-4" />Dashboard</Link>
+                      <Link href="/outlets"><LayoutDashboard className="mr-2 h-4 w-4" />Dashboard</Link>
                     </DropdownMenuItem>
                    )}
                   <DropdownMenuSeparator />

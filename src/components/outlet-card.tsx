@@ -14,7 +14,7 @@ export default function OutletCard({ outlet }: OutletCardProps) {
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    // This will only run on the client side
+    // This will only run on the client side after mount
     setUserRole(localStorage.getItem('userRole'));
   }, []);
 

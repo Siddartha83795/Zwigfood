@@ -6,13 +6,10 @@ export default function StaffDashboardRedirect() {
     const router = useRouter();
 
     useEffect(() => {
-        const userRole = localStorage.getItem('userRole');
-        if (userRole === 'staff') {
-            router.replace('/outlets');
-        } else {
-            router.replace('/auth/login');
-        }
+        // All staff are now redirected to the outlet selection page
+        router.replace('/outlets');
     }, [router]);
 
+    // This component renders nothing as it only handles redirection.
     return null;
 }
