@@ -84,9 +84,8 @@ service cloud.firestore {
      * @path /orders/{orderId}
      */
     match /orders/{orderId} {
-      // Any authenticated user can create an order, provided it's valid.
       allow create: if isValidOrder();
-
+      
       // Users can read their own orders. Staff can read all orders.
       // This is the key rule. When a client queries with where('client.id', '==', uid),
       // Firestore checks this `read` permission on each document returned.
