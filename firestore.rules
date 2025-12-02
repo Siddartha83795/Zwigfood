@@ -93,6 +93,7 @@ service cloud.firestore {
       allow create: if isValidOrder();
       
       // A user can read their own order. Staff can read any order.
+      // This rule allows the client's filtered query to succeed securely.
       allow read: if isOwner(resource.data.client.id) || isStaff();
       
       // This is the key change: Only staff can list the entire collection.
